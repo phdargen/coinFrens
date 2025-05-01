@@ -3,9 +3,9 @@ export async function GET() {
 
   return Response.json({
     accountAssociation: {
-      header: process.env.FARCASTER_HEADER,
-      payload: process.env.FARCASTER_PAYLOAD,
-      signature: process.env.FARCASTER_SIGNATURE,
+      header: "eyJmaWQiOjM3MjA4OCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDhmOWQwNTQ3YmY3ODkzMWNEOEJCMzQyODU5YTNmNzg3OTc5MDMzQkYifQ",
+      payload: "eyJkb21haW4iOiJjb2luLWZyZW5zLnZlcmNlbC5hcHAifQ",
+      signature: "MHgwOTc5ZmE5Nzc1ZWVjZTM4NmE3ZGUwMjE4ZTkwZDhjMTE0YTViMmQyZDRkMjZiYTIzMmU0MWNmODc5NTY5M2FlMGQ5MGQwYmNiOWE0MGZjZDgzYzViNTA2MjMxNzQ0MWNiMjdlNjkzZWY3ODZmNTRmYmRhODJlZjdlOTg0YmFkOTFi"
     },
     frame: {
       version: process.env.NEXT_PUBLIC_VERSION,

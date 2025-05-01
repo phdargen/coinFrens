@@ -6,6 +6,14 @@ const nextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
+  // Configure dynamic rendering for routes using Redis
+  experimental: {
+    serverActions: {
+      allowedOrigins: ["localhost:3000", "coinfrens.vercel.app"],
+    },
+  },
+  // Disable static generation for API routes
+  output: "standalone",
 };
 
 export default nextConfig;

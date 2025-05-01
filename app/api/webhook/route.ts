@@ -7,6 +7,9 @@ import { http } from "viem";
 import { createPublicClient } from "viem";
 import { optimism } from "viem/chains";
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 const appName = process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME;
 
 const KEY_REGISTRY_ADDRESS = "0x00000000Fc1237824fb747aBDE0FF18990E59b7e";
