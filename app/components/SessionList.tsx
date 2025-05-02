@@ -57,9 +57,9 @@ export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }
       
       <div className="grid gap-4">
         {sessions.map((session) => {
-          const participantCount = Object.keys(session.prompts).length;
+          const participantCount = Object.keys(session.participants || {}).length;
           const spotsLeft = session.maxParticipants - participantCount;
-          const userHasJoined = userFid ? !!session.prompts[userFid] : false;
+          const userHasJoined = userFid ? !!session.participants?.[userFid] : false;
           const isFull = participantCount >= session.maxParticipants;
           
           return (

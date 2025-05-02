@@ -1,5 +1,5 @@
 import { redis } from "./redis";
-import { CoinSession } from "./types";
+import { CoinSession, Participant } from "./types";
 import { nanoid } from "nanoid";
 
 const SESSION_KEY_PREFIX = "coin-session:";
@@ -9,7 +9,9 @@ export async function createSession(
   creatorFid: string, 
   creatorName?: string, 
   maxParticipants: number = 4,
-  prompt?: string
+  prompt?: string,
+  address?: string,
+  pfpUrl?: string
 ): Promise<CoinSession | null> {
   if (!redis) {
     console.error("Redis client not available. Check your Redis configuration.");
@@ -23,14 +25,20 @@ export async function createSession(
       creatorFid,
       creatorName,
       createdAt: Date.now(),
-      prompts: {},
+      participants: {},
       maxParticipants,
       status: "pending",
     };
 
     // Add the creator's prompt if provided
     if (prompt) {
-      session.prompts[creatorFid] = prompt;
+      session.participants[creatorFid] = {
+        fid: creatorFid,
+        username: creatorName,
+        address,
+        pfpUrl,
+        prompt
+      };
     }
 
     // Store the session
@@ -97,7 +105,9 @@ export async function addPromptToSession(
   sessionId: string, 
   fid: string, 
   prompt: string,
-  username?: string
+  username?: string,
+  address?: string,
+  pfpUrl?: string
 ): Promise<CoinSession | null> {
   if (!redis) return null;
   
@@ -105,18 +115,26 @@ export async function addPromptToSession(
   if (!session) return null;
   
   // Don't allow more participants than the max
-  if (Object.keys(session.prompts).length >= session.maxParticipants) {
+  if (Object.keys(session.participants).length >= session.maxParticipants) {
     return null;
   }
   
-  // Add the prompt
-  session.prompts[fid] = prompt;
+  // Add the participant with all details
+  const participant: Participant = {
+    fid,
+    username,
+    address,
+    pfpUrl,
+    prompt
+  };
+  
+  session.participants[fid] = participant;
   
   // Update the session
   await redis.set(`${SESSION_KEY_PREFIX}${sessionId}`, JSON.stringify(session));
   
   // If we've reached the max participants, set status to generating
-  if (Object.keys(session.prompts).length === session.maxParticipants) {
+  if (Object.keys(session.participants).length === session.maxParticipants) {
     return updateSessionStatus(sessionId, "generating");
   }
   

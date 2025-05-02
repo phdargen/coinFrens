@@ -54,8 +54,8 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   // Get user ID from either Farcaster or wallet
   const userFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
-  const userHasJoined = !!session.prompts[userFid];
-  const participantCount = Object.keys(session.prompts).length;
+  const userHasJoined = !!session.participants?.[userFid];
+  const participantCount = Object.keys(session.participants || {}).length;
   const remainingSpots = session.maxParticipants - participantCount;
   
   // Helper function to format creator name

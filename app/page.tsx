@@ -55,6 +55,7 @@ export default function Home() {
       // Use our utility functions to safely get ID and username
       const fid = context ? getFarcasterUserId(context) : `wallet-${address}`;
       const username = context ? getFarcasterUsername(context) : address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : undefined;
+      const pfpUrl = context?.user?.pfpUrl;
       
       if (!fid) {
         throw new Error("Could not identify your account");
@@ -71,6 +72,8 @@ export default function Home() {
           creatorName: username,
           maxParticipants,
           prompt,
+          address: address || undefined,
+          pfpUrl
         }),
       });
       

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { creatorFid, creatorName, maxParticipants, prompt } = body;
+    const { creatorFid, creatorName, maxParticipants, prompt, address, pfpUrl } = body;
 
     if (!creatorFid) {
       return NextResponse.json(
@@ -21,14 +21,18 @@ export async function POST(request: Request) {
       creatorName,
       maxParticipants: maxParticipants || 4,
       hasPrompt: !!prompt,
-      promptLength: prompt?.length
+      promptLength: prompt?.length,
+      hasAddress: !!address,
+      hasPfp: !!pfpUrl
     });
 
     const session = await createSessionInDb(
       creatorFid, 
       creatorName, 
       maxParticipants || 4,
-      prompt
+      prompt,
+      address,
+      pfpUrl
     );
 
     if (!session) {
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
 
     console.log("Session created successfully", {
       sessionId: session.id,
-      promptsCount: Object.keys(session.prompts).length
+      participantCount: Object.keys(session.participants).length
     });
 
     return NextResponse.json({ success: true, session });

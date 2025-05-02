@@ -60,6 +60,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
     
     const userFid = context ? getFarcasterUserId(context) : `wallet-${address}`;
     const username = context ? getFarcasterUsername(context) : address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : undefined;
+    const pfpUrl = context?.user?.pfpUrl;
     
     if (!userFid) {
       setError("Unable to identify your account");
@@ -67,7 +68,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
     }
     
     // Check if the user has already joined
-    if (session?.prompts[userFid]) {
+    if (session?.participants?.[userFid]) {
       setError("You have already joined this session");
       return;
     }
@@ -87,12 +88,15 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
           fid: userFid,
           prompt,
           username,
+          address: address || undefined,
+          pfpUrl
         }),
       });
       
       if (!response.ok) {
         throw new Error("Failed to add prompt");
       }
+      console.log("Prompt added successfully:", response);
       
       // Redirect to the session page
       router.push(`/session/${sessionId}`);
@@ -117,8 +121,8 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   }
 
   const userFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
-  const userHasJoined = !!session.prompts[userFid];
-  const participantCount = Object.keys(session.prompts).length;
+  const userHasJoined = !!session.participants?.[userFid];
+  const participantCount = Object.keys(session.participants || {}).length;
   const isFull = participantCount >= session.maxParticipants;
 
   if (userHasJoined) {

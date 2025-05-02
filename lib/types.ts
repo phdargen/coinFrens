@@ -3,6 +3,19 @@ export type CoinMetadata = {
   symbol: string;
   description: string;
   imageUrl: string;
+  coinAddress?: string;
+  txHash?: string;
+  deployment?: any;
+  ipfsImageUri?: string;
+  ipfsMetadataUri?: string;
+};
+
+export type Participant = {
+  fid: string;
+  username?: string;
+  address?: string;
+  pfpUrl?: string;
+  prompt: string;
 };
 
 export type CoinSession = {
@@ -10,14 +23,8 @@ export type CoinSession = {
   creatorFid: string;
   creatorName?: string;
   createdAt: number;
-  prompts: { [fid: string]: string };
+  participants: { [fid: string]: Participant };
   maxParticipants: number;
   status: "pending" | "generating" | "complete";
   metadata?: CoinMetadata;
-};
-
-export type Participant = {
-  fid: string;
-  name?: string;
-  prompt: string;
 }; 

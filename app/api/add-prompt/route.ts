@@ -7,14 +7,16 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { sessionId, fid, prompt, username } = body;
+    const { sessionId, fid, prompt, username, address, pfpUrl } = body;
 
     console.log("Adding prompt to session:", { 
       sessionId, 
       fid, 
       promptLength: prompt?.length, 
       prompt: prompt?.substring(0, 50) + (prompt?.length > 50 ? "..." : ""),
-      username 
+      username,
+      hasAddress: !!address,
+      hasPfp: !!pfpUrl
     });
 
     if (!sessionId || !fid || !prompt) {
@@ -25,7 +27,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const session = await addPromptToSession(sessionId, fid, prompt, username);
+    const session = await addPromptToSession(sessionId, fid, prompt, username, address, pfpUrl);
 
     if (!session) {
       console.error("Failed to add prompt to session:", sessionId);
@@ -37,8 +39,8 @@ export async function POST(request: Request) {
 
     console.log("Successfully added prompt to session:", { 
       sessionId,
-      promptCount: Object.keys(session.prompts).length,
-      participants: session.maxParticipants
+      participantCount: Object.keys(session.participants).length,
+      maxParticipants: session.maxParticipants
     });
 
     return NextResponse.json({ success: true, session });

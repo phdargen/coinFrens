@@ -2,6 +2,9 @@
   "name": "coinfrens",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >= 23.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,11 +12,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.3.21",
     "@coinbase/onchainkit": "latest",
     "@farcaster/frame-sdk": "^0.0.35",
     "@tanstack/react-query": "^5",
     "@upstash/redis": "^1.34.4",
+    "@zoralabs/coins-sdk": "^0.1.0",
+    "ai": "^4.3.13",
     "dotenv": "^16.5.0",
+    "form-data": "^4.0.2",
     "nanoid": "^5.1.5",
     "next": "^14.2.15",
     "react": "^18",
@@ -22,7 +29,7 @@
     "wagmi": "^2.14.11"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^22.12.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",

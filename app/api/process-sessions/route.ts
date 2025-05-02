@@ -14,7 +14,7 @@ export async function GET() {
     const readySessions = sessions.filter(
       (session) => 
         session.status === "pending" && 
-        Object.keys(session.prompts).length >= session.maxParticipants
+        Object.keys(session.participants).length >= session.maxParticipants
     );
     
     if (readySessions.length === 0) {

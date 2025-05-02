@@ -43,7 +43,7 @@ export async function processCompletedSession(sessionId: string): Promise<CoinSe
   }
   
   // Combine all the prompts
-  const prompts = Object.values(updatedSession.prompts);
+  const prompts = Object.values(updatedSession.participants).map(participant => participant.prompt);
   const combinedPrompt = prompts.join(" ");
   
   try {
