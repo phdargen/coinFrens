@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
+import { useOpenUrl } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
 import { CoinSession } from "@/lib/types";
 import { LoadingComponent, ErrorComponent } from "@/app/components/UIComponents";
@@ -9,6 +10,7 @@ import { getFarcasterUserId } from "@/lib/farcaster-utils";
 
 export default function SessionPage({ params }: { params: { id: string } }) {
   const { context } = useMiniKit();
+  const openUrl = useOpenUrl();
   const { address } = useAccount();
   const [session, setSession] = useState<CoinSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -130,15 +132,21 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">
                   {session.metadata.description}
                 </p>
-                {session.metadata.imageUrl && (
+                {session.metadata.ipfsImageUri && (
                   <div className="mt-3">
                     <img 
-                      src={session.metadata.imageUrl} 
+                      src={session.metadata.ipfsImageUri.replace('ipfs://', 'https://ipfs.io/ipfs/')} 
                       alt={session.metadata.name}
                       className="max-w-full rounded-lg max-h-40 mx-auto"
                     />
                   </div>
                 )}
+                <button
+                  onClick={() => session.metadata?.coinAddress ? openUrl(`https://zora.co/coin/base:${session.metadata.coinAddress}?referrer=0xda641da2646a3c08f7689077b99bacd7272ba0aa`) : null}
+                  className="mt-4 w-full py-2 px-4 bg-[#6A39EC] text-white rounded-md hover:bg-opacity-90 transition flex items-center justify-center"
+                >
+                  <span>View on Zora</span>
+                </button>
               </div>
             </div>
           )}

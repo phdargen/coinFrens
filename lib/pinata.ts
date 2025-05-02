@@ -354,9 +354,9 @@ export async function generateZoraTokenUri(params: {
       name: params.name,
       description: params.description,
       symbol: params.symbol,
-      image: ipfsImageUri,
+      image: ipfsImageUri,// ipfsImageUri,
       content: {
-        uri: ipfsImageUri, //.replace('ipfs://', 'https://ipfs.io/ipfs/'),
+        uri: ipfsImageUri,// ipfsImageUri, //.replace('ipfs://', 'https://ipfs.io/ipfs/'),
         mime: mimeType || "image/png",
       },
     };
