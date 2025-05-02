@@ -116,12 +116,12 @@ export default function Home() {
       </div>
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Coin Frens</h1>
-          <p className="mt-2 text-gray-500">Collaborate with friends to create a content coin</p>
+          <h1 className="text-3xl font-bold">CoinJoin</h1>
+          <p className="mt-2 text-gray-500">Coin with your frens</p>
         </div>
         
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Start a New Coin Creation</h2>
+          <h2 className="text-xl font-semibold mb-4">Start a CoinJoin Jam Session</h2>
           
           {error && (
             <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-md">
@@ -150,7 +150,7 @@ export default function Home() {
             
             <div>
               <label htmlFor="participants" className="block mb-1 font-medium">
-                Number of Participants
+                Number of Frens
               </label>
               <select
                 id="participants"
@@ -158,10 +158,10 @@ export default function Home() {
                 value={maxParticipants}
                 onChange={(e) => setMaxParticipants(parseInt(e.target.value))}
               >
-                <option value={2}>2 Participants</option>
-                <option value={3}>3 Participants</option>
-                <option value={4}>4 Participants</option>
-                <option value={5}>5 Participants</option>
+                <option value={2}>2 Frens </option>
+                <option value={3}>3 Frens</option>
+                <option value={4}>4 Frens</option>
+                <option value={5}>5 Frens</option>
               </select>
             </div>
             
@@ -170,7 +170,7 @@ export default function Home() {
               className="w-full py-2 px-4 bg-primary text-white rounded-md hover:bg-opacity-90 transition"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creating..." : "Create Coin Session"}
+              {isSubmitting ? "Creating..." : "Create CoinJoin Jam Session"}
             </button>
             
             {!context && !address && (
@@ -181,9 +181,9 @@ export default function Home() {
           </form>
         </div>
         
-        <div className="text-center">
+        <div className="text-center text-xl">
           <a href="/join" className="text-primary hover:underline">
-            Or join an existing session
+            Join a CoinJoin Jam Session
           </a>
         </div>
       </div>

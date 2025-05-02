@@ -96,7 +96,38 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
       if (!response.ok) {
         throw new Error("Failed to add prompt");
       }
-      console.log("Prompt added successfully:", response);
+      
+      const data = await response.json();
+      console.log("Prompt added successfully:", data);
+      
+      // Check if the session is now full after adding this participant
+      const updatedSession = data.session;
+      const participantCount = Object.keys(updatedSession.participants || {}).length;
+      
+      if (participantCount >= updatedSession.maxParticipants) {
+        console.log("Session is now full, triggering coin generation...");
+        // Call the generate coin API
+        try {
+          const generateResponse = await fetch("/api/generate-coin", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId,
+            }),
+          });
+          
+          if (!generateResponse.ok) {
+            console.error("Failed to trigger coin generation:", await generateResponse.text());
+          } else {
+            console.log("Coin generation initiated successfully");
+          }
+        } catch (genError) {
+          console.error("Error triggering coin generation:", genError);
+          // Continue to redirect even if coin generation fails
+        }
+      }
       
       // Redirect to the session page
       router.push(`/session/${sessionId}`);
@@ -141,12 +172,12 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
     <main className="flex min-h-screen flex-col items-center p-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Coin Frens</h1>
+          <h1 className="text-3xl font-bold">CoinJoin</h1>
           <p className="mt-2 text-gray-500">Join Session #{sessionId}</p>
         </div>
         
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Join This Coin Creation</h2>
+          <h2 className="text-xl font-semibold mb-4">Join This CoinJoin Jam Session</h2>
           
           {error && (
             <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-md">

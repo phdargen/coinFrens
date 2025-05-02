@@ -1,6 +1,7 @@
 import { CoinSession } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 interface SessionListProps {
   sessions: CoinSession[];
@@ -62,6 +63,14 @@ export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }
           const userHasJoined = userFid ? !!session.participants?.[userFid] : false;
           const isFull = participantCount >= session.maxParticipants;
           
+          // Get participants with usernames, excluding the creator
+          const participantsList = Object.values(session.participants || {})
+            .filter(p => p.username && p.fid !== session.creatorFid);
+          
+          // Get all users including creator for profile pictures
+          const allUsers = Object.values(session.participants || {});
+          const creatorUser = allUsers.find(p => p.fid === session.creatorFid);
+          
           return (
             <div 
               key={session.id} 
@@ -69,12 +78,35 @@ export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }
             >
               <div>
                 <div className="font-medium">Session #{session.id}</div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm">
                   Created by {session.creatorName || `User #${session.creatorFid}`}
                 </div>
-                <div className="text-sm">
+                {participantsList.length > 0 && (
+                  <div className="text-sm mt-1">
+                    Joined by: {participantsList.map(p => p.username).join(", ")}
+                  </div>
+                )}
+                <div className="text-sm mt-1">
                   {participantCount} participant{participantCount !== 1 ? "s" : ""} 
                   {spotsLeft > 0 ? ` (${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} left)` : " (Full)"}
+                </div>
+                
+                {/* Profile pictures row */}
+                <div className="flex mt-2 space-x-2 overflow-hidden">
+                  {allUsers.map((user, index) => (
+                    <div 
+                      key={`${user.fid}-${index}`} 
+                      className={`inline-block h-8 w-8 rounded-full`}
+                    >
+                      <img
+                        src={user.pfpUrl || "/coinFrens.png"}
+                        alt={user.username || `User ${user.fid}`}
+                        width={32}
+                        height={32}
+                        className="rounded-full object-cover"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
               

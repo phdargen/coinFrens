@@ -51,8 +51,8 @@ export default function JoinPage() {
     <main className="flex min-h-screen flex-col items-center p-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Coin Frens</h1>
-          <p className="mt-2 text-gray-500">Join an existing coin creation session</p>
+          <h1 className="text-3xl font-bold">CoinJoin</h1>
+          <p className="mt-2 text-gray-500">Join an existing CoinJoin Jam Session</p>
         </div>
 
         {error && (
@@ -75,7 +75,7 @@ export default function JoinPage() {
 
         <div className="text-center">
           <a href="/" className="text-primary hover:underline">
-            Or create your own session
+            Create your own CoinJoin Jam Session
           </a>
         </div>
       </div>
