@@ -6,12 +6,6 @@ import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
 import { getFarcasterUserId, getFarcasterUsername } from "@/lib/farcaster-utils";
 import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownDisconnect,
-} from "@coinbase/onchainkit/wallet";
-import {
   Name,
   Identity,
   Address,
@@ -26,7 +20,12 @@ export default function Home() {
   const [maxParticipants, setMaxParticipants] = useState(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -99,20 +98,14 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="absolute top-4 right-4">
-        <Wallet className="z-10">
-          <ConnectWallet>
-            <Name className="text-inherit" />
-          </ConnectWallet>
-          <WalletDropdown>
-            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-              <Avatar />
-              <Name />
-              <Address />
-              <EthBalance />
-            </Identity>
-            <WalletDropdownDisconnect />
-          </WalletDropdown>
-        </Wallet>
+        {isClient && address && (
+          <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+            <Avatar />
+            <Name />
+            <Address />
+            <EthBalance />
+          </Identity>
+        )}
       </div>
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
