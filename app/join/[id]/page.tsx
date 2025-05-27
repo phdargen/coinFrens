@@ -12,11 +12,9 @@ import { getFarcasterUserId, getFarcasterUsername } from "@/lib/farcaster-utils"
 import { MAX_PROMPT_LENGTH } from "@/src/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowRight, ArrowLeft, Sparkles, Users } from "lucide-react";
+import { Users, ArrowLeft } from "lucide-react";
 
 export default function JoinSessionPage({ params }: { params: { id: string } }) {
   const { context } = useMiniKit();

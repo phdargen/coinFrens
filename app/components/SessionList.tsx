@@ -1,32 +1,21 @@
 import { CoinSession } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState, useCallback } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { RefreshCw, Users, Clock, UserCheck } from "lucide-react";
+import { Users, Clock, UserCheck } from "lucide-react";
 import { useViewProfile, useOpenUrl, useMiniKit } from '@coinbase/onchainkit/minikit';
 
 interface SessionListProps {
   sessions: CoinSession[];
-  onRefresh?: () => void;
-  showRefresh?: boolean;
   userFid?: string;
 }
 
-export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }: SessionListProps) {
+export function SessionList({ sessions, userFid }: SessionListProps) {
   const router = useRouter();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const viewProfile = useViewProfile();
-
-  const handleRefresh = async () => {
-    if (isRefreshing || !onRefresh) return;
-    setIsRefreshing(true);
-    await onRefresh();
-    setIsRefreshing(false);
-  };
 
   const handleJoin = (sessionId: string) => {
     router.push(`/join/${sessionId}`);
@@ -47,38 +36,12 @@ export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }
           </div>
         </div>
         <p className="text-muted-foreground">No active sessions available.</p>
-        {showRefresh && onRefresh && (
-          <Button 
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </Button>
-        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {showRefresh && onRefresh && (
-        <div className="flex justify-end">
-          <Button 
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            size="sm"
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
-      )}
-      
       <div className="grid gap-4">
         {sessions.map((session) => {
           const participantCount = Object.keys(session.participants || {}).length;

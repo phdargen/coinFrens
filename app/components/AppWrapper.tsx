@@ -11,7 +11,7 @@ interface AppWrapperProps {
 
 export function AppWrapper({ children }: AppWrapperProps) {
   const { setFrameReady, isFrameReady } = useMiniKit();
-  const [activeTab, setActiveTab] = useState<'create' | 'join' | 'completed'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'join' | 'completed'>('join');
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -29,8 +29,10 @@ export function AppWrapper({ children }: AppWrapperProps) {
   // Update active tab based on current route
   useEffect(() => {
     if (pathname === '/') {
+      setActiveTab('join');
+    } else if (pathname === '/create') {
       setActiveTab('create');
-    } else if (pathname === '/join' || pathname.startsWith('/join/')) {
+    } else if (pathname.startsWith('/join/')) {
       setActiveTab('join');
     } else if (pathname === '/completed') {
       setActiveTab('completed');
@@ -41,9 +43,9 @@ export function AppWrapper({ children }: AppWrapperProps) {
   const handleTabChange = (tab: 'create' | 'join' | 'completed') => {
     setActiveTab(tab);
     if (tab === 'create') {
-      router.push('/');
+      router.push('/create');
     } else if (tab === 'join') {
-      router.push('/join');
+      router.push('/');
     } else if (tab === 'completed') {
       router.push('/completed');
     }

@@ -51,8 +51,6 @@ export function CompletedCoinsPage() {
       {/* Completed Coins List */}
       <CompletedCoinsList 
         sessions={sessions} 
-        onRefresh={fetchCompletedSessions}
-        showRefresh={false}
       />
     </div>
   );

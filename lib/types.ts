@@ -25,6 +25,6 @@ export type CoinSession = {
   createdAt: number;
   participants: { [fid: string]: Participant };
   maxParticipants: number;
-  status: "pending" | "generating" | "complete";
+  status: "pending" | "generating" | "complete" | "txFailed";
   metadata?: CoinMetadata;
 }; 

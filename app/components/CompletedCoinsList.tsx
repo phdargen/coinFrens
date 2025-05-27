@@ -5,29 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { RefreshCw, Users, Trophy, ExternalLink } from "lucide-react";
+import { Users, Trophy, ExternalLink } from "lucide-react";
 import { useViewProfile, useOpenUrl } from '@coinbase/onchainkit/minikit';
 
 interface CompletedCoinsListProps {
   sessions: CoinSession[];
-  onRefresh?: () => void;
-  showRefresh?: boolean;
 }
 
-export function CompletedCoinsList({ sessions, onRefresh, showRefresh = true }: CompletedCoinsListProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
+export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
   const viewProfile = useViewProfile();
   const openUrl = useOpenUrl();
   
   // Referrer address for Zora links
   const ZORA_REFERRER = "0xda641da2646a3c08f7689077b99bacd7272ba0aa";
-
-  const handleRefresh = async () => {
-    if (isRefreshing || !onRefresh) return;
-    setIsRefreshing(true);
-    await onRefresh();
-    setIsRefreshing(false);
-  };
 
   const handleViewProfile = useCallback((fid: number | undefined) => {
     if (fid) {
@@ -55,38 +45,12 @@ export function CompletedCoinsList({ sessions, onRefresh, showRefresh = true }: 
         <p className="text-sm text-muted-foreground/70">
           Join sessions to help create amazing coins!
         </p>
-        {showRefresh && onRefresh && (
-          <Button 
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </Button>
-        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {showRefresh && onRefresh && (
-        <div className="flex justify-end">
-          <Button 
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            size="sm"
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
-      )}
-      
       <div className="grid gap-6">
         {sessions.map((session) => {
           const { metadata } = session;

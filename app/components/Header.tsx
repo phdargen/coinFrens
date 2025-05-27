@@ -57,9 +57,9 @@ export function Header() {
               height={32}
               className="rounded-full"
             />
-            <div className="flex flex-col text-xl font-bold text-white">
+            <div className="flex flex-col text-xs font-bold text-white">
               {context?.user?.displayName && (
-                <span className="text-xl font-bold text-white">{context.user.displayName}</span>
+                <span className="text-xs font-bold text-white">{context.user.displayName}</span>
               )}
               <span className="text-xs text-muted-foreground">
                 {name || `${address.slice(0, 6)}...${address.slice(-4)}`}

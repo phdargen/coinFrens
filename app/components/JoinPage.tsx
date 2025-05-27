@@ -7,9 +7,7 @@ import { CoinSession } from "@/lib/types";
 import { SessionList } from "./SessionList";
 import { LoadingComponent } from "./UIComponents";
 import { getFarcasterUserId } from "@/lib/farcaster-utils";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, Wifi, WifiOff, Sparkles } from "lucide-react";
+import { Card, CardContent} from "@/components/ui/card";
 
 export function JoinPage() {
   const { context } = useMiniKit();
@@ -47,7 +45,6 @@ export function JoinPage() {
 
   // Get user ID from either Farcaster or wallet
   const userFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
-  const isConnected = !!context || !!address;
 
   return (
     <div className="space-y-6">
@@ -63,7 +60,6 @@ export function JoinPage() {
       {/* Sessions List */}
       <SessionList 
         sessions={sessions} 
-        onRefresh={fetchSessions} 
         userFid={userFid}
       />
     </div>

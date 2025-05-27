@@ -2,17 +2,16 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Header } from "./components/Header";
-import { LoadingComponent } from "./components/UIComponents";
-import { JoinPage } from "./components/JoinPage";
+import { Header } from "../components/Header";
+import { LoadingComponent } from "../components/UIComponents";
 
 // Dynamic import for CreateSession component
-const CreateSession = dynamic(() => import('./components/CreateSession').then(mod => ({ default: mod.CreateSession })), {
+const CreateSession = dynamic(() => import('../components/CreateSession').then(mod => ({ default: mod.CreateSession })), {
   loading: () => <LoadingComponent text="Loading..." />,
   ssr: false
 });
 
-export default function Home() {
+export default function CreatePage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -21,7 +20,7 @@ export default function Home() {
 
   // Render a loading state during SSR/before hydration
   if (!mounted) {
-    return <LoadingComponent text="Loading CoinJoin..." />;
+    return <LoadingComponent text="Loading..." />;
   }
 
   return (
@@ -31,10 +30,10 @@ export default function Home() {
           {/* Header with logo and user identity */}
           <Header />
           
-          {/* Show Join page as the main landing page */}
-          <JoinPage />
+          {/* Create Session content */}
+          <CreateSession />
         </div>
       </div>
     </main>
   );
-}
+} 
