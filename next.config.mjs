@@ -12,6 +12,29 @@ const nextConfig = {
       allowedOrigins: ["localhost:3000", "coinfrens.vercel.app"],
     },
   },
+  // Configure images to allow IPFS and other external sources
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ipfs.io',
+        port: '',
+        pathname: '/ipfs/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'source.boringavatars.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.githubusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
   // Disable static generation for API routes
   output: "standalone",
 };

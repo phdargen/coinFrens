@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSession as createSessionInDb } from "@/lib/session-client";
+import { MAX_PROMPT_LENGTH } from "@/src/constants";
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,13 @@ export async function POST(request: Request) {
     if (!creatorFid) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    if (prompt && prompt.length > MAX_PROMPT_LENGTH) {
+      return NextResponse.json(
+        { error: `Prompt must be ${MAX_PROMPT_LENGTH} characters or less` },
         { status: 400 }
       );
     }

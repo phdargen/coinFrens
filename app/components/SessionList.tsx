@@ -1,7 +1,13 @@
 import { CoinSession } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { RefreshCw, Users, Clock, UserCheck } from "lucide-react";
+import { useViewProfile, useOpenUrl, useMiniKit } from '@coinbase/onchainkit/minikit';
 
 interface SessionListProps {
   sessions: CoinSession[];
@@ -13,6 +19,7 @@ interface SessionListProps {
 export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }: SessionListProps) {
   const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const viewProfile = useViewProfile();
 
   const handleRefresh = async () => {
     if (isRefreshing || !onRefresh) return;
@@ -25,18 +32,31 @@ export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }
     router.push(`/join/${sessionId}`);
   };
 
+  const handleViewProfile = useCallback((fid: number | undefined) => {
+    if (fid) {
+      viewProfile(fid);
+    }
+  }, [viewProfile]);
+
   if (sessions.length === 0) {
     return (
-      <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center">
-        <p>No active sessions available.</p>
+      <div className="text-center space-y-4">
+        <div className="flex items-center justify-center mb-4">
+          <div className="bg-muted/50 p-4 rounded-full">
+            <Clock className="h-8 w-8 text-muted-foreground" />
+          </div>
+        </div>
+        <p className="text-muted-foreground">No active sessions available.</p>
         {showRefresh && onRefresh && (
-          <button 
-            className="mt-2 px-4 py-2 bg-primary text-white rounded-md"
+          <Button 
+            variant="outline"
             onClick={handleRefresh}
             disabled={isRefreshing}
+            className="gap-2"
           >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -46,13 +66,16 @@ export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }
     <div className="space-y-4">
       {showRefresh && onRefresh && (
         <div className="flex justify-end">
-          <button 
-            className="px-4 py-2 bg-primary text-white rounded-md"
+          <Button 
+            variant="outline"
             onClick={handleRefresh}
             disabled={isRefreshing}
+            size="sm"
+            className="gap-2"
           >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          </Button>
         </div>
       )}
       
@@ -63,61 +86,83 @@ export function SessionList({ sessions, onRefresh, showRefresh = true, userFid }
           const userHasJoined = userFid ? !!session.participants?.[userFid] : false;
           const isFull = participantCount >= session.maxParticipants;
           
-          // Get participants with usernames, excluding the creator
-          const participantsList = Object.values(session.participants || {})
-            .filter(p => p.username && p.fid !== session.creatorFid);
-          
           // Get all users including creator for profile pictures
           const allUsers = Object.values(session.participants || {});
-          const creatorUser = allUsers.find(p => p.fid === session.creatorFid);
+          
+          // Create placeholder spots for empty participant slots
+          const totalSlots = session.maxParticipants;
+          const emptySlots = totalSlots - allUsers.length;
           
           return (
-            <div 
-              key={session.id} 
-              className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg flex justify-between items-center"
-            >
-              <div>
-                <div className="font-medium">Session #{session.id}</div>
-                <div className="text-sm">
-                  Created by {session.creatorName || `User #${session.creatorFid}`}
-                </div>
-                {participantsList.length > 0 && (
-                  <div className="text-sm mt-1">
-                    Joined by: {participantsList.map(p => p.username).join(", ")}
+            <Card key={session.id} className="border bg-gradient-to-br from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 transition-all duration-300 hover:shadow-lg">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {/* Creator and Status Info */}
+                  <div className="space-y-2">
+                    {userHasJoined && (
+                      <div className="flex justify-center">
+                        <Badge variant="outline" className="text-xs gap-1 bg-green-50 text-green-700 border-green-200">
+                          <UserCheck className="h-3 w-3" />
+                          You&apos;re in!
+                        </Badge>
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="text-sm mt-1">
-                  {participantCount} participant{participantCount !== 1 ? "s" : ""} 
-                  {spotsLeft > 0 ? ` (${spotsLeft} spot${spotsLeft !== 1 ? "s" : ""} left)` : " (Full)"}
+                  
+                  {/* Large Profile Pictures Grid */}
+                  <div className="grid grid-cols-4 gap-3">
+                    {/* Show actual participants */}
+                    {allUsers.map((user, index) => (
+                      <div key={`${user.fid}-${index}`} className="flex flex-col items-center space-y-2">
+                        <div className="aspect-square w-full">
+                          <Avatar className="w-full h-full border-2 border-border/50 shadow-sm">
+                            <AvatarImage 
+                              src={user.pfpUrl || "/coinFrens.png"} 
+                              alt={user.username || `User ${user.fid}`}
+                              className="object-cover"
+                            />
+                            <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+                              {(user.username || user.fid).slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <button 
+                          onClick={() => handleViewProfile(typeof user.fid === 'string' && user.fid.startsWith('wallet-') ? undefined : Number(user.fid))}
+                          className="text-xs text-center text-muted-foreground font-medium truncate w-full hover:text-primary hover:underline transition-colors cursor-pointer"
+                        >
+                          {user.username || `User ${user.fid.length > 10 ? user.fid.slice(0, 8) + '...' : user.fid}`}
+                        </button>
+                      </div>
+                    ))}
+                    
+                    {/* Show empty slots for remaining participants */}
+                    {Array.from({ length: emptySlots }).map((_, index) => (
+                      <div key={`empty-${index}`} className="flex flex-col items-center space-y-2">
+                        <div className="aspect-square w-full">
+                          <div className="w-full h-full border-2 border-dashed border-muted-foreground/30 rounded-full flex items-center justify-center bg-muted/20">
+                            <Users className="h-6 w-6 text-muted-foreground/50" />
+                          </div>
+                        </div>
+                        <p className="text-xs text-center text-muted-foreground/50 font-medium">
+                          Open spot
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Full-width Join Button */}
+                  <Button
+                    onClick={() => handleJoin(session.id)}
+                    disabled={isFull || userHasJoined}
+                    size="lg"
+                    className="w-full"
+                    variant={userHasJoined ? "outline" : "default"}
+                  >
+                    {userHasJoined ? "✓ Joined" : isFull ? "Session Full" : "Join Session"}
+                  </Button>
                 </div>
-                
-                {/* Profile pictures row */}
-                <div className="flex mt-2 space-x-2 overflow-hidden">
-                  {allUsers.map((user, index) => (
-                    <div 
-                      key={`${user.fid}-${index}`} 
-                      className={`inline-block h-8 w-8 rounded-full`}
-                    >
-                      <img
-                        src={user.pfpUrl || "/coinFrens.png"}
-                        alt={user.username || `User ${user.fid}`}
-                        width={32}
-                        height={32}
-                        className="rounded-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <button
-                className="px-4 py-2 bg-primary text-white rounded-md disabled:opacity-50"
-                onClick={() => handleJoin(session.id)}
-                disabled={isFull || userHasJoined}
-              >
-                {userHasJoined ? "Joined" : "Join"}
-              </button>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

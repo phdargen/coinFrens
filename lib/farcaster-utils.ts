@@ -2,63 +2,30 @@
 import { useAccount } from 'wagmi';
 
 export function getFarcasterUserId(context: any): string {
+  // Use the direct pattern for development fallback
+  const fid = context?.user?.fid || (process.env.NODE_ENV === 'development' ? 372088 : undefined);
+  
+  if (fid) {
+    console.log("Using fid:", fid);
+    return String(fid);
+  }
+  
   if (!context) {
-    // When no Farcaster context exists, try to get the wallet address
-    try {
-      // Get the connected wallet address
-      const address = context?.walletClient?.account?.address || 
-                     context?.connectedAddress || 
-                     '';
-      
-      if (address) {
-        // Prefix the address with 'wallet-' to distinguish from Farcaster IDs
-        return `wallet-${address}`;
-      }
-    } catch (error) {
-      console.error("Error getting wallet address:", error);
-    }
-    
     return "";
   }
   
-  // First try to get the fid from user.fid, as specified
-  const fid = context?.user?.fid;
-  
-  // Debug the context structure and extracted fid
-  console.log("Farcaster context:", JSON.stringify(context, null, 2));
-  console.log("Extracted fid:", fid);
-  
-  // If fid exists, return it as a string
-  if (fid) return String(fid);
-  
-  // In development mode, use a fallback hardcoded ID
-  if (process.env.NODE_ENV === 'development') {
-    console.log("Using development fallback FID");
-    return "372088";
-  }
-  
-  // Otherwise, try connected address or other possible paths for the user ID
-  // Get the wallet address if available
-  const address = context.connectedAddress || 
-                 context.walletClient?.account?.address || 
+  // If no fid, try to get the wallet address
+  const address = context?.connectedAddress || 
+                 context?.walletClient?.account?.address || 
                  '';
   
   if (address) {
-    // If we have an address but no FID, use the wallet address with prefix
     console.log("Using wallet address as FID:", address);
     return `wallet-${address}`;
   }
   
-  // Last resort, try any other Farcaster related IDs
-  const fallbackId = String(
-    context.fid || 
-    context.user?.id || 
-    context.frameContext?.fid ||
-    ""
-  );
-  
-  console.log("Using fallback ID:", fallbackId);
-  return fallbackId;
+  console.log("No valid FID or address found");
+  return "";
 }
 
 export function getFarcasterUsername(context: any): string | undefined {

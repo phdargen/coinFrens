@@ -1,22 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
-import { useMiniKit } from "@coinbase/onchainkit/minikit";
+import { useMiniKit, useViewProfile } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
 import { CoinSession } from "@/lib/types";
 import { LoadingComponent, ErrorComponent } from "@/app/components/UIComponents";
+import { Header } from "@/app/components/Header";
 import { getFarcasterUserId, getFarcasterUsername } from "@/lib/farcaster-utils";
+import { MAX_PROMPT_LENGTH } from "@/src/constants";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { ArrowRight, ArrowLeft, Sparkles, Users } from "lucide-react";
 
 export default function JoinSessionPage({ params }: { params: { id: string } }) {
   const { context } = useMiniKit();
   const { address } = useAccount();
   const router = useRouter();
+  const viewProfile = useViewProfile();
   const [session, setSession] = useState<CoinSession | null>(null);
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showConnectWalletPrompt, setShowConnectWalletPrompt] = useState(false);
 
   const sessionId = params.id;
 
@@ -44,6 +56,12 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
     fetchSession();
   }, [sessionId]);
 
+  const handleViewProfile = React.useCallback((fid: number | undefined) => {
+    if (fid) {
+      viewProfile(fid);
+    }
+  }, [viewProfile]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -52,9 +70,14 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
       return;
     }
     
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      setError(`Prompt must be ${MAX_PROMPT_LENGTH} characters or less`);
+      return;
+    }
+    
     // Allow joining without Farcaster if wallet is connected
     if (!context && !address) {
-      setError("Please connect with Farcaster or a wallet");
+      setShowConnectWalletPrompt(true);
       return;
     }
     
@@ -156,6 +179,8 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const participantCount = Object.keys(session.participants || {}).length;
   const isFull = participantCount >= session.maxParticipants;
 
+  const allUsers = Object.values(session.participants || {});
+
   if (userHasJoined) {
     // If user has already joined, redirect to the session page
     router.push(`/session/${sessionId}`);
@@ -169,63 +194,145 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">CoinJoin</h1>
-          <p className="mt-2 text-gray-500">Join Session #{sessionId}</p>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Join This CoinJoin Jam Session</h2>
-          
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-md">
-              {error}
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="prompt" className="block mb-1 font-medium">
-                Your Prompt Part
-              </label>
-              <textarea
-                id="prompt"
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700"
-                placeholder="Enter your part of the coin prompt..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={3}
-                required
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                This will be combined with other participants&apos; prompts to generate your coin.
-              </p>
-            </div>
+    <main className="min-h-screen bg-background dark:bg-background">
+      <div className="flex min-h-screen flex-col items-center p-4">
+        <div className="max-w-md w-full space-y-8 pb-24">
+          {/* Header with logo and user identity */}
+          <Header />
+                    
+          {/* Main Card */}
+          <Card className="border bg-card">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Join Jam Session
+              </CardTitle>
+              {allUsers.length > 0 && (
+                <CardDescription className="text-center pt-2">
+                  {participantCount} / {session.maxParticipants} frens have joined:
+                </CardDescription>
+              )}
+            </CardHeader>
             
-            <button
-              type="submit"
-              className="w-full py-2 px-4 bg-primary text-white rounded-md hover:bg-opacity-90 transition"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Joining..." : "Join Coin Session"}
-            </button>
-            
-            {!context && !address && (
-              <p className="text-center text-sm text-yellow-500 mt-2">
-                Connect with Farcaster or a wallet to join
-              </p>
-            )}
-          </form>
-        </div>
-        
-        <div className="text-center">
-          <a href="/join" className="text-primary hover:underline">
-            Back to all sessions
-          </a>
+            <CardContent className="space-y-6">
+              {/* Display Joined Users */}
+              {session.maxParticipants > 0 && (
+                <div className="pb-4">
+                  <div className="grid grid-cols-4 gap-4">
+                    {Array.from({ length: session.maxParticipants }, (_, index) => {
+                      const userEntries = Object.entries(session.participants || {});
+                      const userEntry = userEntries[index];
+                      const user = userEntry?.[1];
+                      
+                      if (user) {
+                        return (
+                          <div key={`${user.fid}-${index}`} className="flex flex-col items-center space-y-2">
+                            <Avatar className="w-16 h-16 border-2 border-border/50 shadow-sm">
+                              <AvatarImage 
+                                src={user.pfpUrl || "/coinFrens.png"} 
+                                alt={user.username || `User ${user.fid}`}
+                                className="object-cover"
+                              />
+                              <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+                                {(user.username || user.fid).slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <button
+                              onClick={() => handleViewProfile(typeof user.fid === 'string' && user.fid.startsWith('wallet-') ? undefined : Number(user.fid))}
+                              className="text-xs text-center text-muted-foreground font-medium truncate w-full hover:text-primary hover:underline transition-colors cursor-pointer"
+                              disabled={typeof user.fid === 'string' && user.fid.startsWith('wallet-')}
+                            >
+                              {user.username || `User ${user.fid.length > 10 ? user.fid.slice(0, 6) + '...' : user.fid}`}
+                            </button>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div key={`placeholder-${index}`} className="flex flex-col items-center space-y-2">
+                            <div className="w-16 h-16 border-2 border-dashed border-border/30 rounded-full flex items-center justify-center bg-muted/20">
+                              <Users className="h-6 w-6 text-muted-foreground/50" />
+                            </div>
+                            <span className="text-xs text-muted-foreground/50 font-medium">
+                              Waiting...
+                            </span>
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <p className="text-destructive text-sm font-medium">{error}</p>
+                </div>
+              )}
+              
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Textarea
+                    id="prompt"
+                    placeholder="Enter your part of the coin prompt..."
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    maxLength={MAX_PROMPT_LENGTH}
+                    rows={3}
+                    required
+                    className="resize-none bg-muted/50"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    This will be combined with other participants&apos; prompts to AI-generate your coin.
+                  </p>
+                </div>
+                
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting}
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Joining...
+                    </>
+                  ) : (
+                    <>
+                      Join
+                    </>
+                  )}
+                </Button>
+                
+              </form>
+            </CardContent>
+          </Card>
+          
+          {/* Back Link */}
+          <div className="text-center">
+            <Button variant="ghost" asChild className="text-lg">
+              <a href="/join" className="group">
+                <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                Back to all sessions
+              </a>
+            </Button>
+          </div>
         </div>
       </div>
+
+      {showConnectWalletPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-sm text-center shadow-xl">
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Connect Wallet</h3>
+            <p className="text-muted-foreground mb-6">
+              Please sign in first to join this session.
+            </p>
+            <Button onClick={() => setShowConnectWalletPrompt(false)} variant="outline" className="w-full">
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </main>
   );
 } 

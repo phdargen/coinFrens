@@ -95,12 +95,12 @@ async function uploadFileToIPFS(params: {
         Authorization: `Bearer ${params.pinataConfig.jwt}`,
         'Content-Type': 'multipart/form-data; boundary=----PinataBoundary'
       },
-      body: createMultipartBody({
+      body: new Blob([new Uint8Array(createMultipartBody({
         fileName: params.fileName,
         mimeType: params.mimeType,
         fileData: fileBuffer,
         name: params.fileName
-      })
+      }))])
     });
     
     if (!response.ok) {

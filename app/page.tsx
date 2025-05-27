@@ -1,183 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useMiniKit } from "@coinbase/onchainkit/minikit";
-import { useAccount } from "wagmi";
-import { getFarcasterUserId, getFarcasterUsername } from "@/lib/farcaster-utils";
-import {
-  Name,
-  Identity,
-  Address,
-  Avatar,
-  EthBalance,
-} from "@coinbase/onchainkit/identity";
+import dynamic from "next/dynamic";
+import { Header } from "./components/Header";
+import { LoadingComponent } from "./components/UIComponents";
+
+// Dynamic import for CreateSession component
+const CreateSession = dynamic(() => import('./components/CreateSession').then(mod => ({ default: mod.CreateSession })), {
+  loading: () => <LoadingComponent text="Loading..." />,
+  ssr: false
+});
 
 export default function Home() {
-  const { setFrameReady, isFrameReady, context } = useMiniKit();
-  const { address } = useAccount();
-  const [prompt, setPrompt] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState(2);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
-  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
+    setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!isFrameReady) {
-      setFrameReady();
-    }
-  }, [setFrameReady, isFrameReady]);
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!prompt.trim()) {
-      setError("Please enter a prompt");
-      return;
-    }
-    
-    // Allow creation without Farcaster if wallet is connected
-    if (!context && !address) {
-      setError("Please connect with Farcaster or a wallet");
-      return;
-    }
-    
-    setError(null);
-    setIsSubmitting(true);
-    
-    try {
-      // Use our utility functions to safely get ID and username
-      const fid = context ? getFarcasterUserId(context) : `wallet-${address}`;
-      const username = context ? getFarcasterUsername(context) : address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : undefined;
-      const pfpUrl = context?.user?.pfpUrl;
-      
-      if (!fid) {
-        throw new Error("Could not identify your account");
-      }
-      
-      // Create session via API
-      const sessionResponse = await fetch("/api/create-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          creatorFid: fid,
-          creatorName: username,
-          maxParticipants,
-          prompt,
-          address: address || undefined,
-          pfpUrl
-        }),
-      });
-      
-      const sessionData = await sessionResponse.json();
-      
-      if (!sessionData.success || !sessionData.session) {
-        throw new Error(sessionData.error || "Failed to create session");
-      }
-      
-      const session = sessionData.session;
-      console.log("Session created:", session);
-      
-      // Redirect to the session page
-      router.push(`/session/${session.id}`);
-    } catch (err) {
-      console.error("Error creating session:", err);
-      setError(err instanceof Error ? err.message : "Failed to create session. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
+  // Render a loading state during SSR/before hydration
+  if (!mounted) {
+    return <LoadingComponent text="Loading CoinJoin..." />;
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        {isClient && address && (
-          <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-            <Avatar />
-            <Name />
-            <Address />
-            <EthBalance />
-          </Identity>
-        )}
-      </div>
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">CoinJoin</h1>
-          <p className="mt-2 text-gray-500">Coin with your frens</p>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Start a CoinJoin Jam Session</h2>
+    <main className="min-h-screen bg-background dark:bg-background">
+      <div className="flex min-h-screen flex-col items-center p-4">
+        <div className="max-w-md w-full space-y-4 pb-24">
+          {/* Header with logo and user identity */}
+          <Header />
           
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-md">
-              {error}
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="prompt" className="block mb-1 font-medium">
-                Your Prompt Part
-              </label>
-              <textarea
-                id="prompt"
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700"
-                placeholder="Enter your part of the coin prompt..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                rows={3}
-                required
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                This will be combined with other participants&apos; prompts to generate your coin.
-              </p>
-            </div>
-            
-            <div>
-              <label htmlFor="participants" className="block mb-1 font-medium">
-                Number of Frens
-              </label>
-              <select
-                id="participants"
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700"
-                value={maxParticipants}
-                onChange={(e) => setMaxParticipants(parseInt(e.target.value))}
-              >
-                <option value={2}>2 Frens </option>
-                <option value={3}>3 Frens</option>
-                <option value={4}>4 Frens</option>
-                <option value={5}>5 Frens</option>
-              </select>
-            </div>
-            
-            <button
-              type="submit"
-              className="w-full py-2 px-4 bg-primary text-white rounded-md hover:bg-opacity-90 transition"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Creating..." : "Create CoinJoin Jam Session"}
-            </button>
-            
-            {!context && !address && (
-              <p className="text-center text-sm text-yellow-500 mt-2">
-                Connect with Farcaster or a wallet to create a session
-              </p>
-            )}
-          </form>
-        </div>
-        
-        <div className="text-center text-xl">
-          <a href="/join" className="text-primary hover:underline">
-            Join a CoinJoin Jam Session
-          </a>
+          {/* Create Session content */}
+          <CreateSession />
         </div>
       </div>
     </main>

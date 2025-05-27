@@ -1,9 +1,9 @@
 "use client";
 
 import { Header } from "../components/Header";
-import { JoinPage } from "../components/JoinPage";
+import { CompletedCoinsPage } from "../components/CompletedCoinsPage";
 
-export default function JoinPageRoute() {
+export default function CompletedCoinsPageRoute() {
   return (
     <main className="min-h-screen bg-background dark:bg-background">
       <div className="flex min-h-screen flex-col items-center p-4">
@@ -11,8 +11,8 @@ export default function JoinPageRoute() {
           {/* Header with logo and user identity */}
           <Header />
           
-          {/* Join content */}
-          <JoinPage />
+          {/* Completed Coins content */}
+          <CompletedCoinsPage />
         </div>
       </div>
     </main>

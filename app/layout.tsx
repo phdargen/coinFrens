@@ -1,8 +1,8 @@
-import './theme.css';
 import '@coinbase/onchainkit/styles.css';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from './providers';
+import { AppWrapper } from './components/AppWrapper';
 
 
 export const viewport: Viewport = {
@@ -41,9 +41,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="bg-background">
-        <Providers>{children}</Providers>
+    <html lang="en" className="dark">
+      <body className="bg-background text-foreground antialiased">
+        <Providers>
+          <AppWrapper>
+            {children}
+          </AppWrapper>
+        </Providers>
       </body>
     </html>
   );
