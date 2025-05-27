@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActiveSessions, getSession } from "@/lib/session-client";
 import { redis } from "@/lib/redis";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     if (!redis) {

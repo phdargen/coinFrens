@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         await sendFrameNotification({
           fid,
           title: `Welcome to ${appName}`,
-          body: `Thank you for adding ${appName}`,
+          body: `Happy coining with your frens!`,
         });
       } else {
         await deleteUserNotificationDetails(fid);

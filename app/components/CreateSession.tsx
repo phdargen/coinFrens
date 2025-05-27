@@ -83,9 +83,17 @@ export function CreateSession() {
       const session = sessionData.session;
       console.log("Session created:", session);
       
-      // Store session ID and show popup
-      setCreatedSessionId(session.id);
-      setShowAddFramePopup(true);
+      // Check if frame is already added
+      const isFrameAdded = context?.client?.added;
+      
+      if (isFrameAdded) {
+        // Frame already added, redirect directly
+        router.push(`/session/${session.id}`);
+      } else {
+        // Frame not added, show popup
+        setCreatedSessionId(session.id);
+        setShowAddFramePopup(true);
+      }
     } catch (err) {
       console.error("Error creating session:", err);
       setError(err instanceof Error ? err.message : "Failed to create session. Please try again.");
@@ -192,7 +200,7 @@ export function CreateSession() {
         </div>
       )}
 
-              <AddFramePopup 
+          <AddFramePopup 
           isOpen={showAddFramePopup}
           onClose={handlePopupClose}
         />

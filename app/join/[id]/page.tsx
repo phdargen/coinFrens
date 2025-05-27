@@ -31,6 +31,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const [showAddFramePopup, setShowAddFramePopup] = useState(false);
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
 
+
   const sessionId = params.id;
 
   useEffect(() => {
@@ -153,9 +154,17 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
         }
       }
       
-      // Store session ID and show popup
-      setJoinedSessionId(sessionId);
-      setShowAddFramePopup(true);
+      // Check if frame is already added
+      const isFrameAdded = context?.client?.added;
+      
+      if (isFrameAdded) {
+        // Frame already added, redirect directly
+        router.push(`/session/${sessionId}`);
+      } else {
+        // Frame not added, show popup
+        setJoinedSessionId(sessionId);
+        setShowAddFramePopup(true);
+      }
     } catch (err) {
       console.error("Error adding prompt:", err);
       setError("Failed to join session. Please try again.");
@@ -322,7 +331,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
             <Button variant="ghost" asChild className="text-lg">
               <a href="/join" className="group">
                 <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                Back to all sessions
+                Back
               </a>
             </Button>
           </div>

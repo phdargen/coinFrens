@@ -10,11 +10,9 @@ import { LoadingComponent, ErrorComponent } from "@/app/components/UIComponents"
 import { Header } from "@/app/components/Header";
 import { getFarcasterUserId } from "@/lib/farcaster-utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, ArrowLeft, ExternalLink, CheckCircle, Clock, Loader2, Share2 } from "lucide-react";
-import Image from "next/image";
+import { Users, ArrowLeft, Share2 } from "lucide-react";
 import { sdk } from '@farcaster/frame-sdk';
 
 export default function SessionPage({ params }: { params: { id: string } }) {
@@ -60,6 +58,8 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   const handleShare = useCallback(() => {
     if (!session) return;
+    const participantCount = Object.keys(session?.participants || {}).length;
+    const remainingSpots = (session?.maxParticipants || 0) - participantCount;
     const baseUrl = process.env.NEXT_PUBLIC_URL || '';
     const frameUrl = `${baseUrl}`;
     const text = `Join my CoinJam session by adding your secret prompt fragment! ${remainingSpots} spots left!`;

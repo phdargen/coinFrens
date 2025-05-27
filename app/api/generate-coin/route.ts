@@ -6,7 +6,8 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { generateCoinMetadata } from '@/lib/metadata-generator';
 import { PlatformFactory } from '@/lib/platform-factory';
 import { PlatformType } from '@/lib/coin-platform-types';
-import { sendFrameNotification } from '@/lib/notification-client';
+import { getAllNotificationEnabledUsers } from "@/lib/notification";
+import { sendBatchNotifications } from '@/lib/notification-client';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -147,26 +148,35 @@ export async function POST(request: Request) {
       
       // Send notifications to all participants about the successful coin creation
       if (session.participants) {
-        const notificationPromises = Object.values(session.participants).map(async (participant) => {
-          // Only send notifications to Farcaster users (not wallet-only users)
-          if (!participant.fid.startsWith('wallet-')) {
-            try {
-              const fid = Number(participant.fid);
-              await sendFrameNotification({
-                fid,
-                title: `"${generatedMetadata.symbol}" launched 🚀!`,
-                body: `You coined "${generatedMetadata.name}" with your frens!`,
-              });
-            } catch (error) {
-              console.error(`Failed to send notification to participant ${participant.fid}:`, error);
-              // Continue with other notifications even if one fails
-            }
-          }
-        });
+        // Get all notification-enabled users
+        const notificationEnabledFids = await getAllNotificationEnabledUsers();
         
-        // Wait for all notifications to be sent (or fail)
-        await Promise.allSettled(notificationPromises);
-        console.log("Notifications sent to all eligible participants");
+        // Filter for participants who have notifications enabled
+        const eligibleFids = Object.values(session.participants)
+          .filter(participant => 
+            !participant.fid.startsWith('wallet-') // Only Farcaster users
+          )
+          .map(participant => Number(participant.fid))
+          .filter(participantFid => 
+            !isNaN(participantFid) && 
+            notificationEnabledFids.includes(participantFid)
+          );
+        
+        if (eligibleFids.length > 0) {
+          const batchResult = await sendBatchNotifications({
+            fids: eligibleFids,
+            title: `"${generatedMetadata.symbol}" launched 🚀!`,
+            body: `You coined "${generatedMetadata.name}" with your frens!`,
+          });
+          
+          console.log("Launch notifications batch result:", {
+            attempted: eligibleFids.length,
+            success: batchResult.success,
+            frequencyLimited: batchResult.frequencyLimited,
+            notificationsDisabled: batchResult.notificationsDisabled,
+            failed: batchResult.failed
+          });
+        }
       }
     } else {
       await updateSessionStatus(sessionId, "txFailed");

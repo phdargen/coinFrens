@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { addPromptToSession, getSession } from "@/lib/session-client";
 import { MAX_PROMPT_LENGTH } from "@/src/constants";
-import { sendFrameNotification } from "@/lib/notification-client";
 import { getAllNotificationEnabledUsers } from "@/lib/notification";
 import { sendBatchNotifications } from "@/lib/notification-client";
 
