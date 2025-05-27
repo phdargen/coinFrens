@@ -1,5 +1,5 @@
 import { Address, PublicClient, WalletClient } from 'viem';
-import { createCoin } from '@zoralabs/coins-sdk';
+import { createCoin, createCoinCall, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
 import { 
   CoinPlatform, 
   CoinCreationParams, 
@@ -33,39 +33,90 @@ export class ZoraPlatform implements CoinPlatform {
       initialPurchaseWei: BigInt(0) // No initial purchase
     };
 
-    // Create the coin with retry logic
-    console.log("Creating coin with Zora SDK...");
+    // Create the coin with retry logic and manual gas handling
+    console.log("Creating coin with smart gas handling...");
     
     const maxRetries = 3;
     const retryDelay = 10000; // 10 seconds between retries
     let lastError: any = null;
     let coinCreationResult;
-    let gasMultiplier = 150; // Start with 150%
+    let gasMultiplier = BigInt(150); // 150% of estimated gas
+    let fallbackGasLimit = BigInt(8000000); // Fallback 8M gas if estimation fails
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      let request;
       try {
-        console.log(`Attempting to create coin (attempt ${attempt}/${maxRetries}) with gas multiplier: ${gasMultiplier}%...`);
+        console.log(`Attempting to create coin (attempt ${attempt}/${maxRetries})...`);
         
         if (attempt > 1) {
           console.log(`Waiting ${retryDelay/1000} seconds before retry...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
         
-        // Create the coin
-        coinCreationResult = await createCoin(coinParams, walletClient, publicClient, { gasMultiplier });
+        // Get the contract call parameters
+        const createCoinRequest = await createCoinCall(coinParams);
+        
+        // Simulate the contract call to get the request
+        const simulateResult = await publicClient.simulateContract({
+          ...createCoinRequest,
+          account: walletClient.account,
+        });
+        request = simulateResult.request;
+        console.log("Request:", request);
+        
+        // Use estimated gas with multiplier if available, otherwise use fallback
+        if (request.gas) {
+          const estimatedGas = request.gas;
+          request.gas = (estimatedGas * gasMultiplier) / BigInt(100);
+          console.log(`Using ${gasMultiplier}% of estimated gas: ${estimatedGas} -> ${request.gas}`);
+        } else {
+          console.log(`No gas estimate available, using fallback gas limit: ${fallbackGasLimit}`);
+          request.gas = fallbackGasLimit;
+        }
+        console.log("Request with gas limit:", request);
+        
+        console.log(`Executing transaction with gas limit: ${request.gas.toString()}`);
+        
+        // Execute the transaction
+        const hash = await walletClient.writeContract(request);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        const deployment = getCoinCreateFromLogs(receipt);
+        
+        // Create result object matching SDK format
+        coinCreationResult = {
+          hash,
+          receipt,
+          address: deployment?.coin,
+          deployment,
+        };
+        
+        // Log transaction details for debugging
+        console.log(`Transaction completed with hash: ${coinCreationResult.hash}`);
+        console.log(`Gas used: ${coinCreationResult.receipt.gasUsed?.toString() || 'unknown'}`);
+        console.log(`Gas limit was: ${request.gas.toString()}`);
+        console.log(`Gas utilization: ${coinCreationResult.receipt.gasUsed ? 
+          ((Number(coinCreationResult.receipt.gasUsed) / Number(request.gas)) * 100).toFixed(1) + '%' : 'unknown'}`);
+        console.log(`Transaction status: ${coinCreationResult.receipt.status}`);
         
         // Check if transaction was successful
         if (coinCreationResult.receipt.status === "success") {
           console.log("Coin created successfully:", coinCreationResult);
           break; // Success, exit the loop
         } else {
-          // Transaction reverted - increase gas multiplier for next attempt
+          // Transaction reverted - increase multiplier/limit for next attempt
           const revertError = new Error(`Transaction reverted: ${coinCreationResult.hash}`);
           console.error(`Transaction reverted on attempt ${attempt}. Hash: ${coinCreationResult.hash}`);
           
-          // Increase gas multiplier for next attempt (add 50% more)
-          gasMultiplier += 50;
-          console.log(`Increasing gas multiplier to ${gasMultiplier}% for next attempt`);
+          // Increase multiplier/limit for next attempt
+          if (request?.gas === fallbackGasLimit) {
+            // If using fallback, increase by 2M
+            fallbackGasLimit += BigInt(2000000);
+            console.log(`Increasing fallback gas limit to ${fallbackGasLimit.toString()} for next attempt`);
+          } else {
+            // If using multiplier, increase by 50%
+            gasMultiplier += BigInt(50);
+            console.log(`Increasing gas multiplier to ${gasMultiplier}% for next attempt`);
+          }
           
           throw revertError;
         }
@@ -73,10 +124,26 @@ export class ZoraPlatform implements CoinPlatform {
         console.error(`Error on attempt ${attempt}:`, error);
         lastError = error;
         
-        // Check if error is related to metadata fetch
+        // Check if error is related to gas or execution
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (!errorMessage.includes("Metadata fetch failed") && !errorMessage.includes("Transaction reverted")) {
-          // If it's not a metadata fetch issue or revert, don't retry
+        const isGasRelated = errorMessage.includes("gas") || 
+                           errorMessage.includes("out of gas") || 
+                           errorMessage.includes("execution reverted") ||
+                           errorMessage.includes("Transaction reverted");
+        
+        if (isGasRelated) {
+          console.log(`Gas-related error detected: ${errorMessage}`);
+          if (request?.gas === fallbackGasLimit) {
+            // If using fallback, increase more aggressively
+            fallbackGasLimit += BigInt(3000000);
+            console.log(`Increasing fallback gas limit to ${fallbackGasLimit.toString()} for gas-related retry`);
+          } else {
+            // If using multiplier, increase more aggressively
+            gasMultiplier += BigInt(100);
+            console.log(`Increasing gas multiplier to ${gasMultiplier}% for gas-related retry`);
+          }
+        } else if (!errorMessage.includes("Metadata fetch failed")) {
+          // If it's not a metadata fetch issue or gas issue, don't retry
           throw error;
         }
         
