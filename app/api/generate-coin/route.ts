@@ -6,6 +6,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { generateCoinMetadata } from '@/lib/metadata-generator';
 import { PlatformFactory } from '@/lib/platform-factory';
 import { PlatformType } from '@/lib/coin-platform-types';
+import { sendFrameNotification } from '@/lib/notification-client';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -143,6 +144,30 @@ export async function POST(request: Request) {
     // Update session status
     if (status === "success") {
       await updateSessionStatus(sessionId, "complete");
+      
+      // Send notifications to all participants about the successful coin creation
+      if (session.participants) {
+        const notificationPromises = Object.values(session.participants).map(async (participant) => {
+          // Only send notifications to Farcaster users (not wallet-only users)
+          if (!participant.fid.startsWith('wallet-')) {
+            try {
+              const fid = Number(participant.fid);
+              await sendFrameNotification({
+                fid,
+                title: `"${generatedMetadata.symbol}" launched 🚀!`,
+                body: `You coined "${generatedMetadata.name}" with your frens!`,
+              });
+            } catch (error) {
+              console.error(`Failed to send notification to participant ${participant.fid}:`, error);
+              // Continue with other notifications even if one fails
+            }
+          }
+        });
+        
+        // Wait for all notifications to be sent (or fail)
+        await Promise.allSettled(notificationPromises);
+        console.log("Notifications sent to all eligible participants");
+      }
     } else {
       await updateSessionStatus(sessionId, "txFailed");
     }
