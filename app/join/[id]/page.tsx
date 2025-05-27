@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users, ArrowLeft } from "lucide-react";
+import { AddFramePopup } from "@/app/components/AddFramePopup";
 
 export default function JoinSessionPage({ params }: { params: { id: string } }) {
   const { context } = useMiniKit();
@@ -27,6 +28,8 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showConnectWalletPrompt, setShowConnectWalletPrompt] = useState(false);
+  const [showAddFramePopup, setShowAddFramePopup] = useState(false);
+  const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
 
   const sessionId = params.id;
 
@@ -150,13 +153,21 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
         }
       }
       
-      // Redirect to the session page
-      router.push(`/session/${sessionId}`);
+      // Store session ID and show popup
+      setJoinedSessionId(sessionId);
+      setShowAddFramePopup(true);
     } catch (err) {
       console.error("Error adding prompt:", err);
       setError("Failed to join session. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePopupClose = () => {
+    setShowAddFramePopup(false);
+    if (joinedSessionId) {
+      router.push(`/session/${joinedSessionId}`);
     }
   };
 
@@ -331,6 +342,11 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
           </div>
         </div>
       )}
+
+      <AddFramePopup 
+        isOpen={showAddFramePopup}
+        onClose={handlePopupClose}
+      />
     </main>
   );
 } 

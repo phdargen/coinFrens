@@ -7,12 +7,12 @@ import { useAccount } from "wagmi";
 import { getFarcasterUserId, getFarcasterUsername } from "@/lib/farcaster-utils";
 import { MAX_PROMPT_LENGTH } from "@/src/constants";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Users, ArrowRight, Sparkles } from "lucide-react";
+import { Users, Sparkles } from "lucide-react";
+import { AddFramePopup } from "./AddFramePopup";
 
 export function CreateSession() {
   const { context } = useMiniKit();
@@ -22,6 +22,8 @@ export function CreateSession() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConnectWalletPrompt, setShowConnectWalletPrompt] = useState(false);
+  const [showAddFramePopup, setShowAddFramePopup] = useState(false);
+  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
   const router = useRouter();
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,13 +83,21 @@ export function CreateSession() {
       const session = sessionData.session;
       console.log("Session created:", session);
       
-      // Redirect to the session page
-      router.push(`/session/${session.id}`);
+      // Store session ID and show popup
+      setCreatedSessionId(session.id);
+      setShowAddFramePopup(true);
     } catch (err) {
       console.error("Error creating session:", err);
       setError(err instanceof Error ? err.message : "Failed to create session. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePopupClose = () => {
+    setShowAddFramePopup(false);
+    if (createdSessionId) {
+      router.push(`/session/${createdSessionId}`);
     }
   };
 
@@ -181,6 +191,11 @@ export function CreateSession() {
           </div>
         </div>
       )}
+
+              <AddFramePopup 
+          isOpen={showAddFramePopup}
+          onClose={handlePopupClose}
+        />
     </Card>
   );
 } 
