@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { addPromptToSession, getSession } from "@/lib/session-client";
 import { MAX_PROMPT_LENGTH } from "@/src/constants";
 import { sendFrameNotification } from "@/lib/notification-client";
+import { getAllNotificationEnabledUsers } from "@/lib/notification";
+import { sendBatchNotifications } from "@/lib/notification-client";
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -64,26 +66,36 @@ export async function POST(request: Request) {
     if (participantCount < session.maxParticipants && existingParticipants.length > 0) {
       const joinerName = username || (fid.startsWith('wallet-') ? `${fid.slice(7, 13)}...` : `User ${fid}`);
       
-      const notificationPromises = existingParticipants.map(async (participant) => {
-        // Only send notifications to Farcaster users (not wallet-only users) and not to the person who just joined
-        if (!participant.fid.startsWith('wallet-') && participant.fid !== fid) {
-          try {
-            const participantFid = Number(participant.fid);
-            await sendFrameNotification({
-              fid: participantFid,
-              title: "🎉 New fren joined!",
-              body: `${joinerName} joined your coin session! ${session.maxParticipants - participantCount} spots left.`,
-            });
-          } catch (error) {
-            console.error(`Failed to send notification to participant ${participant.fid}:`, error);
-            // Continue with other notifications even if one fails
-          }
-        }
-      });
+      // Get all notification-enabled users
+      const notificationEnabledFids = await getAllNotificationEnabledUsers();
       
-      // Send all notifications concurrently
-      await Promise.allSettled(notificationPromises);
-      console.log("Join notifications sent to existing participants");
+      // Filter for existing participants who have notifications enabled
+      const eligibleFids = existingParticipants
+        .filter(participant => 
+          !participant.fid.startsWith('wallet-') && // Only Farcaster users
+          participant.fid !== fid // Not the person who just joined
+        )
+        .map(participant => Number(participant.fid))
+        .filter(participantFid => 
+          !isNaN(participantFid) && 
+          notificationEnabledFids.includes(participantFid)
+        );
+      
+      if (eligibleFids.length > 0) {
+        const batchResult = await sendBatchNotifications({
+          fids: eligibleFids,
+          title: "🎉 New fren joined!",
+          body: `${joinerName} joined your coin session! ${session.maxParticipants - participantCount} spots left.`,
+        });
+        
+        console.log("Join notifications batch result:", {
+          attempted: eligibleFids.length,
+          success: batchResult.success,
+          frequencyLimited: batchResult.frequencyLimited,
+          notificationsDisabled: batchResult.notificationsDisabled,
+          failed: batchResult.failed
+        });
+      }
     }
 
     console.log("Successfully added prompt to session:", { 

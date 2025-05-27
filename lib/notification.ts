@@ -40,3 +40,19 @@ export async function deleteUserNotificationDetails(
 
   await redis.del(getUserNotificationDetailsKey(fid));
 }
+
+// Get all FIDs with enabled notifications 
+export async function getAllNotificationEnabledUsers(): Promise<number[]> {
+  if (!redis) {
+    return [];
+  }
+  
+  const pattern = `${notificationServiceKey}:user:*`;
+  const keys = await redis.keys(pattern);
+  
+  // Extract FIDs from keys (format is "...:user:{fid}")
+  return keys.map(key => {
+    const parts = key.split(':');
+    return parseInt(parts[parts.length - 1]);
+  }).filter(fid => !isNaN(fid));
+}

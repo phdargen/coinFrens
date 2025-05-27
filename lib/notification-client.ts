@@ -65,3 +65,45 @@ export async function sendFrameNotification({
 
   return { state: "error", error: responseJson };
 }
+
+export async function sendBatchNotifications({
+  fids,
+  title,
+  body,
+}: {
+  fids: number[];
+  title: string;
+  body: string;
+}): Promise<{
+  success: number;
+  frequencyLimited: number;
+  notificationsDisabled: number;
+  failed: number;
+}> {
+  const results = await Promise.allSettled(
+    fids.map(fid => sendFrameNotification({ 
+      fid, 
+      title, 
+      body, 
+    }))
+  );
+  
+  const success = results.filter(
+    result => result.status === 'fulfilled' && result.value.state === 'success'
+  ).length;
+  
+  const frequencyLimited = results.filter(
+    result => result.status === 'fulfilled' && result.value.state === 'rate_limit'
+  ).length;
+
+  const notificationsDisabled = results.filter(
+    result => result.status === 'fulfilled' && result.value.state === 'no_token'
+  ).length;
+  
+  return {
+    success,
+    frequencyLimited,
+    notificationsDisabled,
+    failed: fids.length - success - frequencyLimited - notificationsDisabled
+  };
+}

@@ -60,17 +60,6 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
             <Card key={session.id} className="border bg-gradient-to-br from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 transition-all duration-300 hover:shadow-lg">
               <CardContent className="p-6">
                 <div className="space-y-4">
-                  {/* Creator and Status Info */}
-                  <div className="space-y-2">
-                    {userHasJoined && (
-                      <div className="flex justify-center">
-                        <Badge variant="outline" className="text-xs gap-1 bg-green-50 text-green-700 border-green-200">
-                          <UserCheck className="h-3 w-3" />
-                          You&apos;re in!
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
                   
                   {/* Large Profile Pictures Grid */}
                   <div className="grid grid-cols-4 gap-3">
@@ -118,8 +107,8 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
                     onClick={() => handleJoin(session.id)}
                     disabled={isFull || userHasJoined}
                     size="lg"
-                    className="w-full"
-                    variant={userHasJoined ? "outline" : "default"}
+                    className={`w-full ${userHasJoined ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : ""}`}
+                    variant={userHasJoined ? undefined : "default"}
                   >
                     {userHasJoined ? "✓ Joined" : isFull ? "Session Full" : "Join Session"}
                   </Button>
