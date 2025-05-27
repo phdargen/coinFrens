@@ -54,7 +54,11 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
       <div className="grid gap-6">
         {sessions.map((session) => {
           const { metadata } = session;
-          const allUsers = Object.values(session.participants || {});
+          // Get all users with creator first, then others in join order
+          const participants = session.participants || {};
+          const creatorParticipant = participants[session.creatorFid];
+          const otherParticipants = Object.values(participants).filter(p => p.fid !== session.creatorFid);
+          const allUsers = creatorParticipant ? [creatorParticipant, ...otherParticipants] : Object.values(participants);
           
           return (
             <Card key={session.id} className="border bg-gradient-to-br from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 transition-all duration-300 hover:shadow-lg">

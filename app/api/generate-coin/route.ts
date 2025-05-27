@@ -8,6 +8,7 @@ import { PlatformFactory } from '@/lib/platform-factory';
 import { PlatformType } from '@/lib/coin-platform-types';
 import { getAllNotificationEnabledUsers } from "@/lib/notification";
 import { sendBatchNotifications } from '@/lib/notification-client';
+import { incrementCreatedCoins } from "@/lib/platform-stats";
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -145,6 +146,9 @@ export async function POST(request: Request) {
     // Update session status
     if (status === "success") {
       await updateSessionStatus(sessionId, "complete");
+      
+      // Track successful coin creation in platform stats
+      await incrementCreatedCoins();
       
       // Send notifications to all participants about the successful coin creation
       if (session.participants) {

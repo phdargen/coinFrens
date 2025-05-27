@@ -27,4 +27,10 @@ export type CoinSession = {
   maxParticipants: number;
   status: "pending" | "generating" | "complete" | "txFailed";
   metadata?: CoinMetadata;
+};
+
+export type PlatformStats = {
+  createdCoins: number;
+  createdSessions: number;
+  lastUpdated: number;
 }; 

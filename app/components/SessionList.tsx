@@ -17,8 +17,12 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
   const router = useRouter();
   const viewProfile = useViewProfile();
 
-  const handleJoin = (sessionId: string) => {
-    router.push(`/join/${sessionId}`);
+  const handleJoin = (sessionId: string, userHasJoined: boolean) => {
+    if (userHasJoined) {
+      router.push(`/session/${sessionId}`);
+    } else {
+      router.push(`/join/${sessionId}`);
+    }
   };
 
   const handleViewProfile = useCallback((fid: number | undefined) => {
@@ -49,8 +53,11 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
           const userHasJoined = userFid ? !!session.participants?.[userFid] : false;
           const isFull = participantCount >= session.maxParticipants;
           
-          // Get all users including creator for profile pictures
-          const allUsers = Object.values(session.participants || {});
+          // Get all users with creator first, then others in join order
+          const participants = session.participants || {};
+          const creatorParticipant = participants[session.creatorFid];
+          const otherParticipants = Object.values(participants).filter(p => p.fid !== session.creatorFid);
+          const allUsers = creatorParticipant ? [creatorParticipant, ...otherParticipants] : Object.values(participants);
           
           // Create placeholder spots for empty participant slots
           const totalSlots = session.maxParticipants;
@@ -104,8 +111,8 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
                   
                   {/* Full-width Join Button */}
                   <Button
-                    onClick={() => handleJoin(session.id)}
-                    disabled={isFull || userHasJoined}
+                    onClick={() => handleJoin(session.id, userHasJoined)}
+                    disabled={isFull && !userHasJoined}
                     size="lg"
                     className={`w-full ${userHasJoined ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : ""}`}
                     variant={userHasJoined ? undefined : "default"}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import React from "react";
+import Image from "next/image";
 import { useMiniKit, useViewProfile } from "@coinbase/onchainkit/minikit";
 import { useOpenUrl } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
@@ -10,9 +11,10 @@ import { LoadingComponent, ErrorComponent } from "@/app/components/UIComponents"
 import { Header } from "@/app/components/Header";
 import { getFarcasterUserId } from "@/lib/farcaster-utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, ArrowLeft, Share2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Users, ArrowLeft, Share2, ExternalLink } from "lucide-react";
 import { sdk } from '@farcaster/frame-sdk';
 
 export default function SessionPage({ params }: { params: { id: string } }) {
@@ -58,16 +60,48 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   const handleShare = useCallback(() => {
     if (!session) return;
-    const participantCount = Object.keys(session?.participants || {}).length;
-    const remainingSpots = (session?.maxParticipants || 0) - participantCount;
-    const baseUrl = process.env.NEXT_PUBLIC_URL || '';
-    const frameUrl = `${baseUrl}`;
-    const text = `Join my CoinJam session by adding your secret prompt fragment! ${remainingSpots} spots left!`;
-    sdk.actions.composeCast({
-      text,
-      embeds: [frameUrl]
-    });
-  }, [session]);
+    
+    // Get userFid inside the function to avoid dependency issues
+    const currentUserFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
+    
+    if (session.status === "complete" && session.metadata) {
+      // For completed coins, share with coin details and participants
+      const participants = session.participants || {};
+      const otherParticipants = Object.values(participants)
+        .filter(p => p.fid !== session.creatorFid)
+        .map(p => p.username || `User ${p.fid}`);
+      
+      const otherUsersText = otherParticipants.length > 0 
+        ? ` with ${otherParticipants.join(', ')}${otherParticipants.length === 3 ? ', ...' : ''}`
+        : '';
+      
+      const text = `I coined ${session.metadata.name} (${session.metadata.symbol})${otherUsersText} with CoinJoin.`;
+      const zoraUrl = session.metadata.coinAddress 
+        ? `https://zora.co/coin/base:${session.metadata.coinAddress}?referrer=0xda641da2646a3c08f7689077b99bacd7272ba0aa`
+        : '';
+      
+      sdk.actions.composeCast({
+        text,
+        embeds: zoraUrl ? [zoraUrl] : []
+      });
+    } else {
+      // Incomplete sessions
+      const participantCount = Object.keys(session?.participants || {}).length;
+      const remainingSpots = (session?.maxParticipants || 0) - participantCount;
+      const baseUrl = process.env.NEXT_PUBLIC_URL || '';
+      const frameUrl = `${baseUrl}`;
+      
+      const isCreator = currentUserFid === session.creatorFid;
+      const text = isCreator 
+        ? `Join my CoinJam session by adding your secret prompt fragment! ${remainingSpots} spots left!`
+        : `Join this CoinJam session by ${session.creatorName} and help create an amazing coin! ${remainingSpots} spots left!`;
+      
+      sdk.actions.composeCast({
+        text,
+        embeds: [frameUrl]
+      });
+    }
+  }, [session, context, address]);
 
   if (loading) {
     return <LoadingComponent text="Loading session..." />;
@@ -89,7 +123,10 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   
   // Get creator information from participants
   const creatorParticipant = session.participants?.[session.creatorFid];
-  const allUsers = Object.values(session.participants || {});
+  // Get all users with creator first, then others in join order
+  const participants = session.participants || {};
+  const otherParticipants = Object.values(participants).filter(p => p.fid !== session.creatorFid);
+  const allUsers = creatorParticipant ? [creatorParticipant, ...otherParticipants] : Object.values(participants);
 
   return (
     <main className="min-h-screen bg-background dark:bg-background">
@@ -116,9 +153,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                   </div>
                   <div className="grid grid-cols-4 gap-4">
                     {Array.from({ length: session.maxParticipants }, (_, index) => {
-                      const userEntries = Object.entries(session.participants || {});
-                      const userEntry = userEntries[index];
-                      const user = userEntry?.[1];
+                      const user = allUsers[index];
                       
                       if (user) {
                         return (
@@ -158,14 +193,99 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                   </div>
                 </div>
               )}
+
+              {/* Coin Preview - integrated directly */}
+              {session.status === "complete" && session.metadata && (
+                <div className="text-center space-y-4">
+                  {/* Coin Image */}
+                  <div className="flex justify-center">
+                    <div className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-border/50 shadow-lg bg-gradient-to-br from-primary/20 to-primary/5">
+                      <Image
+                        src={session.metadata.ipfsImageUri ? session.metadata.ipfsImageUri.replace('ipfs://', 'https://ipfs.io/ipfs/') : "/coinFrens.png"}
+                        alt={session.metadata.name || "Coin"}
+                        fill
+                        className="object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "/coinFrens.png";
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Coin Info */}
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold">
+                      {session.metadata.name}
+                      {session.metadata.symbol && (
+                        <span className="text-primary ml-2">({session.metadata.symbol})</span>
+                      )}
+                    </h3>
+                    {session.metadata.description && (
+                      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                        {session.metadata.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Generating Status */}
+              {session.status === "generating" && (
+                <div className="text-center space-y-4">
+                  <div className="flex justify-center">
+                    <div className="w-48 h-48 border-2 border-dashed border-border/30 rounded-full flex items-center justify-center bg-muted/20">
+                      <div className="text-center space-y-2">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-sm text-muted-foreground font-medium">Generating...</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Action Buttons */}
               <div className="space-y-3">
+                {session.status === "complete" && session.metadata?.coinAddress && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1 gap-2"
+                      onClick={() => {
+                        if (session.metadata?.coinAddress) {
+                          const zoraUrl = `https://zora.co/coin/base:${session.metadata.coinAddress}?referrer=0xda641da2646a3c08f7689077b99bacd7272ba0aa`;
+                          openUrl(zoraUrl);
+                        }
+                      }}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View on Zora
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1 gap-2"
+                      onClick={handleShare}
+                    >
+                      <Share2 className="h-3 w-3" />
+                      Share
+                    </Button>
+                  </div>
+                )}
                 
-              <Button className="w-full" size="lg" onClick={handleShare} variant="default">
+                {session.status !== "complete" && (
+                  <Button 
+                    className="w-full" 
+                    size="lg" 
+                    onClick={handleShare} 
+                    variant="default"
+                    disabled={session.status === "generating"}
+                  >
                     <Share2 className="mr-2 h-4 w-4" />
                     Share
-              </Button>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

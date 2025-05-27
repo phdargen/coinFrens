@@ -30,6 +30,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const [showConnectWalletPrompt, setShowConnectWalletPrompt] = useState(false);
   const [showAddFramePopup, setShowAddFramePopup] = useState(false);
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
+  const [isGeneratingCoin, setIsGeneratingCoin] = useState(false);
 
 
   const sessionId = params.id;
@@ -131,6 +132,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
       
       if (participantCount >= updatedSession.maxParticipants) {
         console.log("Session is now full, triggering coin generation...");
+        setIsGeneratingCoin(true);
         // Call the generate coin API
         try {
           const generateResponse = await fetch("/api/generate-coin", {
@@ -151,6 +153,8 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
         } catch (genError) {
           console.error("Error triggering coin generation:", genError);
           // Continue to redirect even if coin generation fails
+        } finally {
+          setIsGeneratingCoin(false);
         }
       }
       
@@ -197,7 +201,11 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const participantCount = Object.keys(session.participants || {}).length;
   const isFull = participantCount >= session.maxParticipants;
 
-  const allUsers = Object.values(session.participants || {});
+  // Get all users with creator first, then others in join order
+  const participants = session.participants || {};
+  const creatorParticipant = participants[session.creatorFid];
+  const otherParticipants = Object.values(participants).filter(p => p.fid !== session.creatorFid);
+  const allUsers = creatorParticipant ? [creatorParticipant, ...otherParticipants] : Object.values(participants);
 
   if (userHasJoined) {
     // If user has already joined, redirect to the session page
@@ -238,9 +246,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                 <div className="pb-4">
                   <div className="grid grid-cols-4 gap-4">
                     {Array.from({ length: session.maxParticipants }, (_, index) => {
-                      const userEntries = Object.entries(session.participants || {});
-                      const userEntry = userEntries[index];
-                      const user = userEntry?.[1];
+                      const user = allUsers[index];
                       
                       if (user) {
                         return (
@@ -313,7 +319,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      Joining...
+                      {isGeneratingCoin ? "Launching coin..." : "Joining..."}
                     </>
                   ) : (
                     <>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSession as createSessionInDb } from "@/lib/session-client";
 import { MAX_PROMPT_LENGTH } from "@/src/constants";
+import { incrementCreatedSessions } from "@/lib/platform-stats";
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -54,6 +55,9 @@ export async function POST(request: Request) {
       sessionId: session.id,
       participantCount: Object.keys(session.participants).length
     });
+
+    // Track session creation in platform stats
+    await incrementCreatedSessions();
 
     return NextResponse.json({ success: true, session });
   } catch (error) {
