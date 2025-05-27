@@ -13,7 +13,6 @@ try {
       url: process.env.KV_REST_API_URL,
       token: process.env.KV_REST_API_TOKEN,
     });
-    console.log("Redis client initialized successfully");
   }
 } catch (error) {
   console.error("Failed to initialize Redis client:", error);

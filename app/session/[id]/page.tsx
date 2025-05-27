@@ -13,7 +13,6 @@ import { getFarcasterUserId } from "@/lib/farcaster-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Users, ArrowLeft, Share2, ExternalLink } from "lucide-react";
 import { sdk } from '@farcaster/frame-sdk';
 

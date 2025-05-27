@@ -11,7 +11,6 @@ export interface MetadataGenerationParams {
 }
 
 export interface GeneratedMetadata extends CoinMetadata {
-  base64ImageData: string;
   fileName: string;
   zoraTokenUri: string;
   ipfsImageHash: string;
@@ -117,7 +116,6 @@ export async function generateCoinMetadata({
 
   return {
     ...coinMetadata,
-    base64ImageData,
     fileName,
     zoraTokenUri: zoraUriResult.uri,
     ipfsImageHash: zoraUriResult.imageHash,

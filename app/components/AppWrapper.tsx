@@ -32,7 +32,7 @@ export function AppWrapper({ children }: AppWrapperProps) {
       setActiveTab('join');
     } else if (pathname === '/create') {
       setActiveTab('create');
-    } else if (pathname.startsWith('/join/')) {
+    } else if (pathname.startsWith('/join/') || pathname.startsWith('/session/')) {
       setActiveTab('join');
     } else if (pathname === '/completed') {
       setActiveTab('completed');
@@ -51,9 +51,9 @@ export function AppWrapper({ children }: AppWrapperProps) {
     }
   };
 
-  // Show navigation on main pages and join pages, but not on session pages
+  // Show navigation on main pages, join pages, and session pages
   // Only show after mounted and frame is ready
-  const showNavigation = !pathname.startsWith('/session/') && mounted && isFrameReady;
+  const showNavigation = mounted && isFrameReady;
 
   return (
     <>

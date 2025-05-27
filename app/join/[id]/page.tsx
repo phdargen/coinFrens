@@ -31,6 +31,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const [showAddFramePopup, setShowAddFramePopup] = useState(false);
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
   const [isGeneratingCoin, setIsGeneratingCoin] = useState(false);
+  const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
 
 
   const sessionId = params.id;
@@ -131,11 +132,12 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
       const participantCount = Object.keys(updatedSession.participants || {}).length;
       
       if (participantCount >= updatedSession.maxParticipants) {
-        console.log("Session is now full, triggering coin generation...");
-        setIsGeneratingCoin(true);
-        // Call the generate coin API
+        console.log("Session is now full, triggering metadata generation...");
+        setIsGeneratingMetadata(true);
+        
+        // First, generate metadata
         try {
-          const generateResponse = await fetch("/api/generate-coin", {
+          const metadataResponse = await fetch("/api/generate-metadata", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -145,15 +147,36 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
             }),
           });
           
-          if (!generateResponse.ok) {
-            console.error("Failed to trigger coin generation:", await generateResponse.text());
+          if (!metadataResponse.ok) {
+            console.error("Failed to generate metadata:", await metadataResponse.text());
+            throw new Error("Failed to generate metadata");
+          }
+          
+          console.log("Metadata generation completed successfully");
+          setIsGeneratingMetadata(false);
+          setIsGeneratingCoin(true);
+          
+          // Then, create the coin
+          const createCoinResponse = await fetch("/api/create-coin", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId,
+            }),
+          });
+          
+          if (!createCoinResponse.ok) {
+            console.error("Failed to create coin:", await createCoinResponse.text());
           } else {
-            console.log("Coin generation initiated successfully");
+            console.log("Coin creation completed successfully");
           }
         } catch (genError) {
-          console.error("Error triggering coin generation:", genError);
+          console.error("Error in coin generation process:", genError);
           // Continue to redirect even if coin generation fails
         } finally {
+          setIsGeneratingMetadata(false);
           setIsGeneratingCoin(false);
         }
       }
@@ -319,7 +342,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      {isGeneratingCoin ? "Launching coin..." : "Joining..."}
+                      {isGeneratingMetadata ? "Generating coin..." : isGeneratingCoin ? "Launching coin..." : "Joining..."}
                     </>
                   ) : (
                     <>

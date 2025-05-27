@@ -79,6 +79,26 @@ The app is wrapped with `MiniKitProvider` in `providers.tsx`, configured with:
 - Sets up Frame SDK listeners
 - Applies Safe Area Insets
 
+## API Endpoints
+
+### Coin Creation Process
+
+The coin creation process is split into two steps to avoid timeout issues:
+
+1. **Generate Metadata** (Step 1):
+```bash
+curl -X POST http://localhost:3000/api/generate-metadata \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "YOUR_SESSION_ID"}'
+```
+
+2. **Create Coin** (Step 2):
+```bash
+curl -X POST http://localhost:3000/api/create-coin \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "YOUR_SESSION_ID"}'
+```
+
 ## Customization
 
 To get started building your own frame, follow these steps:
@@ -102,8 +122,3 @@ To get started building your own frame, follow these steps:
 - [OnchainKit Documentation](https://docs.base.org/builderkits/onchainkit/getting-started)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-
-
-curl -X POST http://localhost:3000/api/generate-coin \
-  -H "Content-Type: application/json" \
-  -d '{"sessionId": "YOUR_SESSION_ID"}'
