@@ -69,9 +69,44 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     // Get userFid inside the function to avoid dependency issues
     const currentUserFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
     
+    // Prepare participant data for the frame
+    const participants = session.participants || {};
+    const participantArray = Object.values(participants).map(p => ({
+      fid: p.fid,
+      username: p.username || `User ${p.fid}`,
+      pfpUrl: p.pfpUrl || ''
+    }));
+    
+    const participantCount = Object.keys(participants).length;
+    const baseUrl = process.env.NEXT_PUBLIC_URL || '';
+    
+    // Build frame URL with session data
+    const frameParams = new URLSearchParams({
+      sessionId: sessionId,
+      creatorName: session.creatorName || 'Unknown Creator',
+      status: session.status,
+      maxParticipants: session.maxParticipants.toString(),
+      participantCount: participantCount.toString(),
+    });
+    
+    // Add participants data
+    if (participantArray.length > 0) {
+      frameParams.set('participants', encodeURIComponent(JSON.stringify(participantArray)));
+    }
+    
+    // Add coin metadata if session is complete
     if (session.status === "complete" && session.metadata) {
-      // For completed coins, share with coin details and participants
-      const participants = session.participants || {};
+      frameParams.set('coinName', session.metadata.name);
+      frameParams.set('coinSymbol', session.metadata.symbol);
+      if (session.metadata.ipfsImageUri) {
+        frameParams.set('coinImageUrl', session.metadata.ipfsImageUri);
+      }
+    }
+    
+    const frameUrl = `${baseUrl}/api/frame/session?${frameParams.toString()}`;
+    
+    if (session.status === "complete" && session.metadata) {
+      // For completed coins, share with coin details and custom frame
       const otherParticipants = Object.values(participants)
         .filter(p => p.fid !== session.creatorFid)
         .map(p => p.username || `User ${p.fid}`);
@@ -81,20 +116,14 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         : '';
       
       const text = `I coined ${session.metadata.name} (${session.metadata.symbol})${otherUsersText} with CoinJoin.`;
-      const zoraUrl = session.metadata.coinAddress 
-        ? `https://zora.co/coin/base:${session.metadata.coinAddress}?referrer=0xda641da2646a3c08f7689077b99bacd7272ba0aa`
-        : '';
       
       sdk.actions.composeCast({
         text,
-        embeds: zoraUrl ? [zoraUrl] : []
+        embeds: [frameUrl]
       });
     } else {
-      // Incomplete sessions
-      const participantCount = Object.keys(session?.participants || {}).length;
+      // Incomplete sessions - use custom frame with participant preview
       const remainingSpots = (session?.maxParticipants || 0) - participantCount;
-      const baseUrl = process.env.NEXT_PUBLIC_URL || '';
-      const frameUrl = `${baseUrl}`;
       
       const isCreator = currentUserFid === session.creatorFid;
       const text = isCreator 
@@ -106,7 +135,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         embeds: [frameUrl]
       });
     }
-  }, [session, context, address]);
+  }, [session, context, address, sessionId]);
 
   if (loading) {
     return <LoadingComponent text="Loading session..." />;
