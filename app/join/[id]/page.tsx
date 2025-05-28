@@ -157,7 +157,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
           setIsGeneratingCoin(true);
           
           // Then, create the coin
-          const createCoinResponse = await fetch("/api/create-coin", {
+          const createCoinResponse = await fetch("/api/create-coin-smart", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -342,7 +342,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      {isGeneratingMetadata ? "Generating coin..." : isGeneratingCoin ? "Launching coin..." : "Joining..."}
+                      {isGeneratingMetadata ? "Generating coin metadata..." : isGeneratingCoin ? "Launching coin..." : "Joining..."}
                     </>
                   ) : (
                     <>

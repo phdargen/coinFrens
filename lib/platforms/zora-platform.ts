@@ -1,4 +1,4 @@
-import { Address, PublicClient, WalletClient } from 'viem';
+import { Address, erc20Abi, PublicClient, WalletClient, encodeFunctionData, Hex } from 'viem';
 import { createCoin, createCoinCall, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
 import { 
   CoinPlatform, 
@@ -33,52 +33,56 @@ export class ZoraPlatform implements CoinPlatform {
       initialPurchaseWei: BigInt(0) // No initial purchase
     };
 
-    // Create the coin with retry logic and manual gas handling
-    console.log("Creating coin with smart gas handling...");
+    // Create the coin with simplified gas handling
+    console.log("Creating coin with sendTransaction...");
     
-    const maxRetries = 3;
-    const retryDelay = 10000; // 10 seconds between retries
-    let lastError: any = null;
+    if (!walletClient.account) {
+      throw new Error("Wallet client account not found");
+    }
+    
+    const fallbackGasLimit = BigInt(8000000); // Fallback 8M gas if first attempt fails
     let coinCreationResult;
-    let gasMultiplier = BigInt(150); // 150% of estimated gas
-    let fallbackGasLimit = BigInt(8000000); // Fallback 8M gas if estimation fails
     
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      let request;
+    try {
+      console.log("First attempt: sending transaction without gas estimation...");
+      
+      // Get the contract call parameters
+      const createCoinRequest = await createCoinCall(coinParams);
+      const { abi, functionName, address, args: callArgs, value } = createCoinRequest;
+      const data = encodeFunctionData({ abi, functionName, args: callArgs });
+      const txRequest = { to: address as Hex, data, value };
+
+      // Send transaction
+      const hash = await walletClient.sendTransaction(txRequest as any);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const deployment = getCoinCreateFromLogs(receipt);
+      
+      // Create result object matching SDK format
+      coinCreationResult = {
+        hash,
+        receipt,
+        address: deployment?.coin,
+        deployment,
+      };
+      
+      // Log transaction details for debugging
+      console.log(`Transaction completed with hash: ${coinCreationResult.hash}`);
+      console.log(`Gas used: ${coinCreationResult.receipt.gasUsed?.toString() || 'unknown'}`);
+      console.log(`Transaction status: ${coinCreationResult.receipt.status}`);
+      
+    } catch (error: any) {
+      console.error("First attempt failed:", error);
+      console.log("Retrying with fallback gas limit...");
+      
       try {
-        console.log(`Attempting to create coin (attempt ${attempt}/${maxRetries})...`);
-        
-        if (attempt > 1) {
-          console.log(`Waiting ${retryDelay/1000} seconds before retry...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-        
-        // Get the contract call parameters
+        // Retry with fallback gas limit
         const createCoinRequest = await createCoinCall(coinParams);
-        
-        // Simulate the contract call to get the request
-        const simulateResult = await publicClient.simulateContract({
-          ...createCoinRequest,
-          account: walletClient.account,
-        });
-        request = simulateResult.request;
-        console.log("Request:", request);
-        
-        // Use estimated gas with multiplier if available, otherwise use fallback
-        if (request.gas) {
-          const estimatedGas = request.gas;
-          request.gas = (estimatedGas * gasMultiplier) / BigInt(100);
-          console.log(`Using ${gasMultiplier}% of estimated gas: ${estimatedGas} -> ${request.gas}`);
-        } else {
-          console.log(`No gas estimate available, using fallback gas limit: ${fallbackGasLimit}`);
-          request.gas = fallbackGasLimit;
-        }
-        console.log("Request with gas limit:", request);
-        
-        console.log(`Executing transaction with gas limit: ${request.gas.toString()}`);
-        
-        // Execute the transaction
-        const hash = await walletClient.writeContract(request);
+        const { abi, functionName, address, args: callArgs, value } = createCoinRequest;
+        const data = encodeFunctionData({ abi, functionName, args: callArgs });
+        const txRequest = { to: address as Hex, data, value, gas: fallbackGasLimit };
+
+        // Send transaction with gas parameter
+        const hash = await walletClient.sendTransaction(txRequest as any);
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
         const deployment = getCoinCreateFromLogs(receipt);
         
@@ -91,72 +95,19 @@ export class ZoraPlatform implements CoinPlatform {
         };
         
         // Log transaction details for debugging
-        console.log(`Transaction completed with hash: ${coinCreationResult.hash}`);
+        console.log(`Retry transaction completed with hash: ${coinCreationResult.hash}`);
         console.log(`Gas used: ${coinCreationResult.receipt.gasUsed?.toString() || 'unknown'}`);
-        console.log(`Gas limit was: ${request.gas.toString()}`);
-        console.log(`Gas utilization: ${coinCreationResult.receipt.gasUsed ? 
-          ((Number(coinCreationResult.receipt.gasUsed) / Number(request.gas)) * 100).toFixed(1) + '%' : 'unknown'}`);
+        console.log(`Gas limit was: ${fallbackGasLimit.toString()}`);
         console.log(`Transaction status: ${coinCreationResult.receipt.status}`);
         
-        // Check if transaction was successful
-        if (coinCreationResult.receipt.status === "success") {
-          console.log("Coin created successfully:", coinCreationResult);
-          break; // Success, exit the loop
-        } else {
-          // Transaction reverted - increase multiplier/limit for next attempt
-          const revertError = new Error(`Transaction reverted: ${coinCreationResult.hash}`);
-          console.error(`Transaction reverted on attempt ${attempt}. Hash: ${coinCreationResult.hash}`);
-          
-          // Increase multiplier/limit for next attempt
-          if (request?.gas === fallbackGasLimit) {
-            // If using fallback, increase by 2M
-            fallbackGasLimit += BigInt(2000000);
-            console.log(`Increasing fallback gas limit to ${fallbackGasLimit.toString()} for next attempt`);
-          } else {
-            // If using multiplier, increase by 50%
-            gasMultiplier += BigInt(50);
-            console.log(`Increasing gas multiplier to ${gasMultiplier}% for next attempt`);
-          }
-          
-          throw revertError;
-        }
-      } catch (error: any) {
-        console.error(`Error on attempt ${attempt}:`, error);
-        lastError = error;
-        
-        // Check if error is related to gas or execution
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const isGasRelated = errorMessage.includes("gas") || 
-                           errorMessage.includes("out of gas") || 
-                           errorMessage.includes("execution reverted") ||
-                           errorMessage.includes("Transaction reverted");
-        
-        if (isGasRelated) {
-          console.log(`Gas-related error detected: ${errorMessage}`);
-          if (request?.gas === fallbackGasLimit) {
-            // If using fallback, increase more aggressively
-            fallbackGasLimit += BigInt(3000000);
-            console.log(`Increasing fallback gas limit to ${fallbackGasLimit.toString()} for gas-related retry`);
-          } else {
-            // If using multiplier, increase more aggressively
-            gasMultiplier += BigInt(100);
-            console.log(`Increasing gas multiplier to ${gasMultiplier}% for gas-related retry`);
-          }
-        } else if (!errorMessage.includes("Metadata fetch failed")) {
-          // If it's not a metadata fetch issue or gas issue, don't retry
-          throw error;
-        }
-        
-        // If this was the last attempt, throw the error
-        if (attempt === maxRetries) {
-          throw error;
-        }
+      } catch (retryError: any) {
+        console.error("Retry attempt also failed:", retryError);
+        throw retryError;
       }
     }
     
     if (!coinCreationResult) {
-      console.error("Coin creation failed after all retries");
-      throw lastError || new Error("Failed to create coin after multiple retries");
+      throw new Error("Failed to create coin");
     }
 
     const status = coinCreationResult.receipt.status;
@@ -164,7 +115,7 @@ export class ZoraPlatform implements CoinPlatform {
     const txHash = coinCreationResult.hash;
     const deployment = coinCreationResult.deployment;
 
-    // Check if the final transaction was successful
+    // Check if the transaction was successful
     if (status !== "success") {
       console.error(`Coin creation failed with status: ${status}. Hash: ${txHash}`);
       throw new Error(`Transaction failed with status: ${status}`);
@@ -196,27 +147,6 @@ export class ZoraPlatform implements CoinPlatform {
         console.log("No valid participant addresses found for token distribution");
         return;
       }
-
-      // Define ERC20 ABI for token transfers
-      const erc20Abi = [
-        {
-          "inputs": [
-            {"name": "to", "type": "address"},
-            {"name": "amount", "type": "uint256"}
-          ],
-          "name": "transfer",
-          "outputs": [{"name": "", "type": "bool"}],
-          "stateMutability": "nonpayable",
-          "type": "function"
-        },
-        {
-          "inputs": [{"name": "account", "type": "address"}],
-          "name": "balanceOf",
-          "outputs": [{"name": "", "type": "uint256"}],
-          "stateMutability": "view",
-          "type": "function"
-        }
-      ] as const;
       
       // Get deployer account address
       if (!walletClient.account?.address) {

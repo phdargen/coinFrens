@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, updateSessionStatus, updateSessionMetadata } from "@/lib/session-client";
 import { createPublicClient, http, createWalletClient, Address } from 'viem';
-import { base } from 'viem/chains';
+import { base, baseSepolia } from 'viem/chains';
 import { mnemonicToAccount } from 'viem/accounts';
 import { PlatformFactory } from '@/lib/platform-factory';
 import { PlatformType } from '@/lib/coin-platform-types';
