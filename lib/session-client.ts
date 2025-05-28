@@ -11,7 +11,11 @@ export async function createSession(
   maxParticipants: number = 4,
   prompt?: string,
   address?: string,
-  pfpUrl?: string
+  pfpUrl?: string,
+  addPfps?: boolean,
+  style?: string,
+  allowedToJoin?: "all" | "followers" | "following" | "frens",
+  minTalentScore?: number | null
 ): Promise<CoinSession | null> {
   if (!redis) {
     console.error("Redis client not available. Check your Redis configuration.");
@@ -28,6 +32,10 @@ export async function createSession(
       participants: {},
       maxParticipants,
       status: "pending",
+      addPfps,
+      style,
+      allowedToJoin,
+      minTalentScore,
     };
 
     // Add the creator's prompt if provided

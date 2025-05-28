@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
 import { getFarcasterUserId, getFarcasterUsername } from "@/lib/farcaster-utils";
-import { MAX_PROMPT_LENGTH } from "@/src/constants";
+import { MAX_PROMPT_LENGTH, SESSION_STYLES } from "@/src/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Sparkles } from "lucide-react";
+import { Users, Sparkles, Image as ImageIcon, ShieldQuestion, BarChartBig } from "lucide-react";
 import { AddFramePopup } from "./AddFramePopup";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 
 export function CreateSession() {
   const { context } = useMiniKit();
@@ -26,6 +28,13 @@ export function CreateSession() {
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
   const router = useRouter();
   
+  // New state variables for additional settings
+  const [addPfps, setAddPfps] = useState(false);
+  const [style, setStyle] = useState<typeof SESSION_STYLES[number]>(SESSION_STYLES[0]);
+  const [customStyle, setCustomStyle] = useState("");
+  const [allowedToJoin, setAllowedToJoin] = useState("all");
+  const [minTalentScore, setMinTalentScore] = useState<number | "">("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -39,6 +48,11 @@ export function CreateSession() {
       return;
     }
     
+    if (style === "Custom" && !customStyle.trim()) {
+      setError("Please enter a custom style description or select a predefined style.");
+      return;
+    }
+    
     // Allow creation without Farcaster if wallet is connected
     if (!context && !address) {
       setShowConnectWalletPrompt(true);
@@ -49,7 +63,7 @@ export function CreateSession() {
     setIsSubmitting(true);
     
     try {
-      // Use our utility functions to safely get ID and username
+      // Use utility functions to get ID and username
       const fid = context ? getFarcasterUserId(context) : `wallet-${address}`;
       const username = context ? getFarcasterUsername(context) : address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : undefined;
       const pfpUrl = context?.user?.pfpUrl;
@@ -70,7 +84,11 @@ export function CreateSession() {
           maxParticipants,
           prompt,
           address: address || undefined,
-          pfpUrl
+          pfpUrl,
+          addPfps,
+          style: style === "Custom" ? customStyle : style,
+          allowedToJoin,
+          minTalentScore: minTalentScore === "" ? null : Number(minTalentScore),
         }),
       });
       
@@ -143,6 +161,49 @@ export function CreateSession() {
               This will be combined with other participants&apos; prompts to AI-generate your coin.
             </p>
           </div>
+
+          {/* Style Select */}
+          <div className="space-y-2">
+            <Label htmlFor="style" className="text-sm font-medium flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Art style for image generation
+            </Label>
+            <Select
+              value={style}
+              onValueChange={(value) => setStyle(value as typeof SESSION_STYLES[number])}
+            >
+              <SelectTrigger className="bg-muted/50">
+                <SelectValue placeholder="Select a style" />
+              </SelectTrigger>
+              <SelectContent>
+                {SESSION_STYLES.map((s) => (
+                  <SelectItem key={s} value={s}>{s === "None" ? "Default (None)" : s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {style === "Custom" && (
+              <Input
+                id="custom-style"
+                placeholder="Describe your custom style (e.g., 'Steampunk, vibrant colors')"
+                value={customStyle}
+                onChange={(e) => setCustomStyle(e.target.value)}
+                className="mt-2 bg-muted/50"
+              />
+            )}
+          </div>
+
+          {/* Add Pfps Switch */}
+          <div className="flex items-center justify-between space-y-2 pt-2">
+            <Label htmlFor="add-pfps" className="text-sm font-medium flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" />
+              Add PFPs to image prompt
+            </Label>
+            <Switch
+              id="add-pfps"
+              checked={addPfps}
+              onCheckedChange={setAddPfps}
+            />
+          </div>
           
           <div className="space-y-2">
             <Label htmlFor="participants" className="text-sm font-medium flex items-center gap-2">
@@ -161,9 +222,52 @@ export function CreateSession() {
                 <SelectItem value="3">3 Frens</SelectItem>
                 <SelectItem value="4">4 Frens</SelectItem>
                 <SelectItem value="5">5 Frens</SelectItem>
+                <SelectItem value="6">6 Frens</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Allowed to Join Select */}
+          <div className="space-y-2">
+            <Label htmlFor="allowed-to-join" className="text-sm font-medium flex items-center gap-2">
+              <ShieldQuestion className="h-4 w-4" />
+              Who can join?
+            </Label>
+            <Select
+              value={allowedToJoin}
+              onValueChange={setAllowedToJoin}
+            >
+              <SelectTrigger className="bg-muted/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Anyone</SelectItem>
+                <SelectItem value="followers">Your followers</SelectItem>
+                <SelectItem value="following">Accounts you follow</SelectItem>
+                <SelectItem value="frens">Mutuals (followers + following)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Min Talent Score Input */}
+          {/* <div className="space-y-2">
+            <Label htmlFor="min-talent-score" className="text-sm font-medium flex items-center gap-2">
+              <BarChartBig className="h-4 w-4" />
+              Minimum Talent Score (Optional)
+            </Label>
+            <Input
+              id="min-talent-score"
+              type="number"
+              placeholder="e.g., 100"
+              value={minTalentScore}
+              onChange={(e) => setMinTalentScore(e.target.value === "" ? "" : Number(e.target.value))}
+              min="0"
+              className="bg-muted/50"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank if no minimum score is required.
+            </p>
+          </div> */}
           
           <Button
             type="submit"

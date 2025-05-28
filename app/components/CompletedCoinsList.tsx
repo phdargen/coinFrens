@@ -100,24 +100,24 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
                 <div className="space-y-3">
                   
                   {/* Creators Grid - similar to SessionList but smaller */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {allUsers.map((user, index) => (
                       <div key={`${user.fid}-${index}`} className="flex flex-col items-center space-y-2">
-                        <div className="aspect-square w-full max-w-16">
+                        <div className="aspect-square w-full max-w-20">
                           <Avatar className="w-full h-full border-2 border-border/50 shadow-sm">
                             <AvatarImage 
                               src={user.pfpUrl || "/coinFrens.png"} 
                               alt={user.username || `User ${user.fid}`}
                               className="object-cover"
                             />
-                            <AvatarFallback className="text-sm bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+                            <AvatarFallback className="text-base bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
                               {(user.username || user.fid).slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                         </div>
                         <button 
                           onClick={() => handleViewProfile(typeof user.fid === 'string' && user.fid.startsWith('wallet-') ? undefined : Number(user.fid))}
-                          className="text-xs text-center text-muted-foreground font-medium truncate w-full hover:text-primary hover:underline transition-colors cursor-pointer"
+                          className="text-sm text-center text-muted-foreground font-medium truncate w-full hover:text-primary hover:underline transition-colors cursor-pointer"
                         >
                           {user.username || `User ${user.fid.length > 10 ? user.fid.slice(0, 6) + '...' : user.fid}`}
                         </button>

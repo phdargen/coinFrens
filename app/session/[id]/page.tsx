@@ -150,26 +150,26 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                   <div className="text-sm font-medium text-muted-foreground mb-3 text-center">
                     {participantCount} / {session.maxParticipants} frens have joined:
                   </div>
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     {Array.from({ length: session.maxParticipants }, (_, index) => {
                       const user = allUsers[index];
                       
                       if (user) {
                         return (
                           <div key={`${user.fid}-${index}`} className="flex flex-col items-center space-y-2">
-                            <Avatar className="w-16 h-16 border-2 border-border/50 shadow-sm">
+                            <Avatar className="w-20 h-20 border-2 border-border/50 shadow-sm">
                               <AvatarImage 
                                 src={user.pfpUrl || "/coinFrens.png"} 
                                 alt={user.username || `User ${user.fid}`}
                                 className="object-cover"
                               />
-                              <AvatarFallback className="text-xs bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+                              <AvatarFallback className="text-sm bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
                                 {(user.username || user.fid).slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <button
                               onClick={() => handleViewProfile(typeof user.fid === 'string' && user.fid.startsWith('wallet-') ? undefined : Number(user.fid))}
-                              className="text-xs text-center text-muted-foreground font-medium truncate w-full hover:text-primary hover:underline transition-colors cursor-pointer"
+                              className="text-sm text-center text-muted-foreground font-medium truncate w-full hover:text-primary hover:underline transition-colors cursor-pointer"
                               disabled={typeof user.fid === 'string' && user.fid.startsWith('wallet-')}
                             >
                               {user.username || `User ${user.fid.length > 10 ? user.fid.slice(0, 6) + '...' : user.fid}`}
@@ -179,10 +179,10 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                       } else {
                         return (
                           <div key={`placeholder-${index}`} className="flex flex-col items-center space-y-2">
-                            <div className="w-16 h-16 border-2 border-dashed border-border/30 rounded-full flex items-center justify-center bg-muted/20">
-                              <Users className="h-6 w-6 text-muted-foreground/50" />
+                            <div className="w-20 h-20 border-2 border-dashed border-border/30 rounded-full flex items-center justify-center bg-muted/20">
+                              <Users className="h-8 w-8 text-muted-foreground/50" />
                             </div>
-                            <span className="text-xs text-muted-foreground/50 font-medium">
+                            <span className="text-sm text-muted-foreground/50 font-medium">
                               Waiting...
                             </span>
                           </div>

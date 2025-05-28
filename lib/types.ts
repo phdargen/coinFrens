@@ -27,6 +27,10 @@ export type CoinSession = {
   maxParticipants: number;
   status: "pending" | "generating" | "complete" | "txFailed";
   metadata?: CoinMetadata;
+  addPfps?: boolean;
+  style?: string;
+  allowedToJoin?: "all" | "followers" | "following" | "frens";
+  minTalentScore?: number | null;
 };
 
 export type PlatformStats = {

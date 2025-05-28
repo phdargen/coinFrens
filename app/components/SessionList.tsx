@@ -1,12 +1,11 @@
 import { CoinSession } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Clock, UserCheck } from "lucide-react";
-import { useViewProfile, useOpenUrl, useMiniKit } from '@coinbase/onchainkit/minikit';
+import { Users, Clock } from "lucide-react";
+import { useViewProfile } from '@coinbase/onchainkit/minikit';
 
 interface SessionListProps {
   sessions: CoinSession[];
@@ -69,7 +68,7 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
                 <div className="space-y-4">
                   
                   {/* Large Profile Pictures Grid */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     {/* Show actual participants */}
                     {allUsers.map((user, index) => (
                       <div key={`${user.fid}-${index}`} className="flex flex-col items-center space-y-2">

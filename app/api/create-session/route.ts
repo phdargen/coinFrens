@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSession as createSessionInDb } from "@/lib/session-client";
-import { MAX_PROMPT_LENGTH } from "@/src/constants";
+import { MAX_PROMPT_LENGTH, MAX_CUSTOM_STYLE_LENGTH, SESSION_STYLES } from "@/src/constants";
 import { incrementCreatedSessions } from "@/lib/platform-stats";
 
 // Force dynamic rendering for this route
@@ -9,7 +9,18 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { creatorFid, creatorName, maxParticipants, prompt, address, pfpUrl } = body;
+    const {
+      creatorFid,
+      creatorName,
+      maxParticipants,
+      prompt,
+      address,
+      pfpUrl,
+      addPfps,
+      style,
+      allowedToJoin,
+      minTalentScore,
+    } = body;
 
     if (!creatorFid) {
       return NextResponse.json(
@@ -25,6 +36,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate custom style length if the style is custom
+    const isCustomStyle = !SESSION_STYLES.includes(style);
+    if (isCustomStyle && style && typeof style === 'string' && style.length > MAX_CUSTOM_STYLE_LENGTH) {
+      return NextResponse.json(
+        { error: `Custom style description must be ${MAX_CUSTOM_STYLE_LENGTH} characters or less` },
+        { status: 400 }
+      );
+    }
+
     console.log("Creating session:", {
       creatorFid,
       creatorName,
@@ -32,7 +52,11 @@ export async function POST(request: Request) {
       hasPrompt: !!prompt,
       promptLength: prompt?.length,
       hasAddress: !!address,
-      hasPfp: !!pfpUrl
+      hasPfp: !!pfpUrl,
+      addPfps,
+      style,
+      allowedToJoin,
+      minTalentScore
     });
 
     const session = await createSessionInDb(
@@ -41,7 +65,11 @@ export async function POST(request: Request) {
       maxParticipants || 4,
       prompt,
       address,
-      pfpUrl
+      pfpUrl,
+      addPfps,
+      style,
+      allowedToJoin,
+      minTalentScore
     );
 
     if (!session) {
