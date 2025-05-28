@@ -244,7 +244,7 @@ export function CreateSession() {
                 <SelectItem value="all">Anyone</SelectItem>
                 <SelectItem value="followers">Your followers</SelectItem>
                 <SelectItem value="following">Accounts you follow</SelectItem>
-                <SelectItem value="frens">Mutuals (followers + following)</SelectItem>
+                <SelectItem value="frens">Frens (followers + following)</SelectItem>
               </SelectContent>
             </Select>
           </div>

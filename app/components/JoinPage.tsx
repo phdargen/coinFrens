@@ -15,6 +15,12 @@ export function JoinPage() {
   const [sessions, setSessions] = useState<CoinSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Add client-side mount check to prevent hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const fetchSessions = async () => {
     try {
@@ -41,6 +47,11 @@ export function JoinPage() {
 
   if (loading) {
     return <LoadingComponent text="Finding awesome sessions..." />;
+  }
+
+  // Don't calculate user-dependent values until component is mounted to prevent hydration errors
+  if (!isMounted) {
+    return <LoadingComponent text="Loading..." />;
   }
 
   // Get user ID from either Farcaster or wallet

@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import { useMiniKit } from '@coinbase/onchainkit/minikit';
 import { useName } from '@coinbase/onchainkit/identity';
 import { base } from 'viem/chains';
@@ -9,11 +10,16 @@ import WalletConnect from './WalletConnect';
 export function Header() {
   const { context } = useMiniKit();
   const { address, isConnected } = useAccount();
+  const [isClient, setIsClient] = useState(false);
 
   const { data: name } = useName({ 
     address: address as `0x${string}`, 
     chain: base 
   });
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
     <>
@@ -51,14 +57,14 @@ export function Header() {
           /* Connected User Display */
           <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 border border-border/50">
             <img
-              src={context?.user?.pfpUrl || "/coinFrens.png"} 
+              src={isClient && context?.user?.pfpUrl ? context.user.pfpUrl : "/coinFrens.png"} 
               alt="Profile" 
               width={32}
               height={32}
               className="rounded-full"
             />
             <div className="flex flex-col text-xs font-bold text-white">
-              {context?.user?.displayName && (
+              {isClient && context?.user?.displayName && (
                 <span className="text-xs font-bold text-white">{context.user.displayName}</span>
               )}
               <span className="text-xs text-muted-foreground">

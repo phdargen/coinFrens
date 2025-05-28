@@ -1,9 +1,6 @@
 // Utility functions to safely extract values from any Farcaster context structure
-import { useAccount } from 'wagmi';
-
 export function getFarcasterUserId(context: any): string {
-  // Use the direct pattern for development fallback
-  const fid = context?.user?.fid || (process.env.NODE_ENV === 'development' ? 372088 : undefined);
+  const fid = context?.user?.fid;
   
   if (fid) {
     console.log("Using fid:", fid);

@@ -9,12 +9,13 @@ import { CoinSession } from "@/lib/types";
 import { LoadingComponent, ErrorComponent } from "@/app/components/UIComponents";
 import { Header } from "@/app/components/Header";
 import { getFarcasterUserId, getFarcasterUsername } from "@/lib/farcaster-utils";
+import { followingChecker } from "@/lib/following-utils";
 import { MAX_PROMPT_LENGTH } from "@/src/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, ArrowLeft } from "lucide-react";
+import { Users, ArrowLeft, Sparkles, ShieldCheck, BarChartBig, Image as ImageIcon } from "lucide-react";
 import { AddFramePopup } from "@/app/components/AddFramePopup";
 
 export default function JoinSessionPage({ params }: { params: { id: string } }) {
@@ -32,9 +33,15 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
   const [isGeneratingCoin, setIsGeneratingCoin] = useState(false);
   const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
-
+  const [joinPermission, setJoinPermission] = useState<{ canJoin: boolean; reason?: string } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const sessionId = params.id;
+
+  // Add client-side mount check to prevent hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -59,6 +66,58 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
 
     fetchSession();
   }, [sessionId]);
+
+  // Check join permissions when session or user context changes
+  useEffect(() => {
+    // Don't run permission check until component is mounted
+    if (!isMounted || !session) return;
+
+    const checkJoinPermission = async () => {
+      const getUserFidForPermission = () => {
+        if (context) {
+          return getFarcasterUserId(context);
+        }
+        
+        if (process.env.NODE_ENV === 'development') {
+          return "372088"; // Use creator FID for testing in dev mode
+        }
+        
+        return address ? `wallet-${address}` : "";
+      };
+
+      const userFid = getUserFidForPermission();
+
+      if (!userFid) {
+        setJoinPermission({ canJoin: false, reason: "Farcaster account not connected" });
+        return;
+      }
+
+      // Check if user has already joined
+      if (session.participants?.[userFid]) {
+        setJoinPermission({ canJoin: false, reason: "Already joined" });
+        return;
+      }
+
+      // Check if user is allowed to join based on allowedToJoin setting
+      if (session.allowedToJoin && session.allowedToJoin !== "all") {
+        try {
+          const joinCheck = await followingChecker.canUserJoinSession(
+            userFid,
+            session.creatorFid,
+            session.allowedToJoin
+          );
+          setJoinPermission(joinCheck);
+        } catch (followError) {
+          console.error("Error checking following status:", followError);
+          setJoinPermission({ canJoin: false, reason: "Unable to verify join permissions" });
+        }
+      } else {
+        setJoinPermission({ canJoin: true });
+      }
+    };
+
+    checkJoinPermission();
+  }, [session, context, address, isMounted]);
 
   const handleViewProfile = React.useCallback((fid: number | undefined) => {
     if (fid) {
@@ -85,18 +144,24 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
       return;
     }
     
-    const userFid = context ? getFarcasterUserId(context) : `wallet-${address}`;
+    const getUserFidForSubmit = () => {
+      if (context) {
+        return getFarcasterUserId(context);
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        return "372088"; // Use creator FID for testing in dev mode
+      }
+      
+      return address ? `wallet-${address}` : "";
+    };
+
+    const userFid = getUserFidForSubmit();
     const username = context ? getFarcasterUsername(context) : address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : undefined;
     const pfpUrl = context?.user?.pfpUrl;
     
     if (!userFid) {
       setError("Unable to identify your account");
-      return;
-    }
-    
-    // Check if the user has already joined
-    if (session?.participants?.[userFid]) {
-      setError("You have already joined this session");
       return;
     }
     
@@ -219,10 +284,35 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
     return <ErrorComponent message="Session not found" />;
   }
 
-  const userFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
+  // Don't calculate user-dependent values until component is mounted to prevent hydration errors
+  if (!isMounted) {
+    return <LoadingComponent text="Loading..." />;
+  }
+
+  // Calculate userFid with development fallback
+  const getUserFid = () => {
+    if (context) {
+      return getFarcasterUserId(context);
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      return "372088"; // Use creator FID for testing in dev mode
+    }
+    
+    return address ? `wallet-${address}` : "";
+  };
+
+  const userFid = getUserFid();
   const userHasJoined = !!session.participants?.[userFid];
   const participantCount = Object.keys(session.participants || {}).length;
   const isFull = participantCount >= session.maxParticipants;
+
+  // Determine if any non-default settings are active for display
+  const hasCustomStyle = session.style && session.style !== "None";
+  const hasPfpsInPrompt = !!session.addPfps;
+  const hasRestrictedJoin = session.allowedToJoin && session.allowedToJoin !== "all";
+  const hasMinTalentScore = session.minTalentScore !== undefined && session.minTalentScore !== null && session.minTalentScore > 0;
+  const showSettingsIndicators = hasCustomStyle || hasPfpsInPrompt || hasRestrictedJoin || hasMinTalentScore;
 
   // Get all users with creator first, then others in join order
   const participants = session.participants || {};
@@ -264,6 +354,38 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
             </CardHeader>
             
             <CardContent className="space-y-6">
+              {/* Session Settings Indicators (conditionally rendered) */}
+              {showSettingsIndicators && (
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-4 mb-4 border-b border-border/20 text-xs text-muted-foreground">
+                  {hasCustomStyle && (
+                    <div className="flex items-center">
+                      <Sparkles className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      {session.style === "Custom" ? "Custom Style" : session.style}
+                    </div>
+                  )}
+                  {hasPfpsInPrompt && (
+                    <div className="flex items-center">
+                      <ImageIcon className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      Add PFPs
+                    </div>
+                  )}
+                  {hasRestrictedJoin && (
+                    <div className="flex items-center">
+                      <ShieldCheck className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      {session.allowedToJoin === "followers" && "Followers Only"}
+                      {session.allowedToJoin === "following" && "Following Only"}
+                      {session.allowedToJoin === "frens" && "Mutuals Only"}
+                    </div>
+                  )}
+                  {hasMinTalentScore && (
+                    <div className="flex items-center">
+                      <BarChartBig className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      Talent {'>'} {session.minTalentScore}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Display Joined Users */}
               {session.maxParticipants > 0 && (
                 <div className="pb-4">
@@ -336,7 +458,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !joinPermission?.canJoin}
                   size="lg"
                 >
                   {isSubmitting ? (
@@ -346,7 +468,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                     </>
                   ) : (
                     <>
-                      Join
+                      {joinPermission?.canJoin ? "Join" : `Join (${joinPermission?.reason})`}
                     </>
                   )}
                 </Button>

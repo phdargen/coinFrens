@@ -13,7 +13,7 @@ import { getFarcasterUserId } from "@/lib/farcaster-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, ArrowLeft, Share2, ExternalLink } from "lucide-react";
+import { Users, ArrowLeft, Share2, ExternalLink, Sparkles, ShieldCheck, BarChartBig, Image as ImageIcon } from "lucide-react";
 import { sdk } from '@farcaster/frame-sdk';
 
 export default function SessionPage({ params }: { params: { id: string } }) {
@@ -24,8 +24,14 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const [session, setSession] = useState<CoinSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const sessionId = params.id;
+
+  // Add client-side mount check to prevent hydration errors
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -114,12 +120,24 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     return <ErrorComponent message="Session not found" />;
   }
 
+  // Don't calculate user-dependent values until component is mounted to prevent hydration errors
+  if (!isMounted) {
+    return <LoadingComponent text="Loading..." />;
+  }
+
   // Get user ID from either Farcaster or wallet
   const userFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
   const userHasJoined = !!session.participants?.[userFid];
   const participantCount = Object.keys(session.participants || {}).length;
   const remainingSpots = session.maxParticipants - participantCount;
   
+  // Determine if any non-default settings are active for display
+  const hasCustomStyle = session.style && session.style !== "None";
+  const hasPfpsInPrompt = !!session.addPfps;
+  const hasRestrictedJoin = session.allowedToJoin && session.allowedToJoin !== "all";
+  const hasMinTalentScore = session.minTalentScore !== undefined && session.minTalentScore !== null && session.minTalentScore > 0;
+  const showSettingsIndicators = hasCustomStyle || hasPfpsInPrompt || hasRestrictedJoin || hasMinTalentScore;
+
   // Get creator information from participants
   const creatorParticipant = session.participants?.[session.creatorFid];
   // Get all users with creator first, then others in join order
@@ -144,6 +162,38 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             </CardHeader>
             
             <CardContent className="space-y-6">
+              {/* Session Settings Indicators (conditionally rendered) */}
+              {showSettingsIndicators && (
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pb-4 mb-4 border-b border-border/20 text-xs text-muted-foreground">
+                  {hasCustomStyle && (
+                    <div className="flex items-center">
+                      <Sparkles className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      {session.style === "Custom" ? "Custom Style" : session.style}
+                    </div>
+                  )}
+                  {hasPfpsInPrompt && (
+                    <div className="flex items-center">
+                      <ImageIcon className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      Add PFPs
+                    </div>
+                  )}
+                  {hasRestrictedJoin && (
+                    <div className="flex items-center">
+                      <ShieldCheck className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      {session.allowedToJoin === "followers" && "Followers Only"}
+                      {session.allowedToJoin === "following" && "Following Only"}
+                      {session.allowedToJoin === "frens" && "Mutuals Only"}
+                    </div>
+                  )}
+                  {hasMinTalentScore && (
+                    <div className="flex items-center">
+                      <BarChartBig className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                      Talent {'>'} {session.minTalentScore}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Display Joined Users */}
               {session.maxParticipants > 0 && (
                 <div className="pb-4">

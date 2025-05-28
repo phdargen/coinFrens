@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Clock } from "lucide-react";
+import { Users, Clock, Sparkles, ShieldCheck, BarChartBig, Image as ImageIcon } from "lucide-react";
 import { useViewProfile } from '@coinbase/onchainkit/minikit';
 
 interface SessionListProps {
@@ -61,6 +61,13 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
           // Create placeholder spots for empty participant slots
           const totalSlots = session.maxParticipants;
           const emptySlots = totalSlots - allUsers.length;
+
+          // Determine if any non-default settings are active
+          const hasCustomStyle = session.style && session.style !== "None";
+          const hasPfpsInPrompt = !!session.addPfps;
+          const hasRestrictedJoin = session.allowedToJoin && session.allowedToJoin !== "all";
+          const hasMinTalentScore = session.minTalentScore !== undefined && session.minTalentScore !== null && session.minTalentScore > 0;
+          const showSettingsIndicators = hasCustomStyle || hasPfpsInPrompt || hasRestrictedJoin || hasMinTalentScore;
           
           return (
             <Card key={session.id} className="border bg-gradient-to-br from-muted/30 to-muted/10 hover:from-muted/40 hover:to-muted/20 transition-all duration-300 hover:shadow-lg">
@@ -107,6 +114,38 @@ export function SessionList({ sessions, userFid }: SessionListProps) {
                       </div>
                     ))}
                   </div>
+                  
+                  {/* Session Settings Indicators (conditionally rendered with the border) */}
+                  {showSettingsIndicators && (
+                    <div className="flex flex-wrap items-center justify-start gap-x-3 gap-y-1 pt-3 border-t border-border/20 mt-3">
+                      {hasCustomStyle && (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Sparkles className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                          {session.style === "Custom" ? "Custom Style" : session.style}
+                        </div>
+                      )}
+                      {hasPfpsInPrompt && (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <ImageIcon className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                          Add PFPs
+                        </div>
+                      )}
+                      {hasRestrictedJoin && (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <ShieldCheck className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                          {session.allowedToJoin === "followers" && "Followers Only"}
+                          {session.allowedToJoin === "following" && "Following Only"}
+                          {session.allowedToJoin === "frens" && "Mutuals Only"}
+                        </div>
+                      )}
+                      {hasMinTalentScore && (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <BarChartBig className="h-3.5 w-3.5 mr-1 text-primary/80" />
+                          Talent {'>'} {session.minTalentScore}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Full-width Join Button */}
                   <Button
