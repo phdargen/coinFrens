@@ -33,6 +33,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
   const [isGeneratingCoin, setIsGeneratingCoin] = useState(false);
   const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
+  const [isPostingToSocials, setIsPostingToSocials] = useState(false);
   const [joinPermission, setJoinPermission] = useState<{ canJoin: boolean; reason?: string } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -236,6 +237,70 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
             console.error("Failed to create coin:", await createCoinResponse.text());
           } else {
             console.log("Coin creation completed successfully");
+            
+            // Get the coin creation result
+            const coinResult = await createCoinResponse.json();
+            
+            setIsGeneratingCoin(false);
+            setIsPostingToSocials(true);
+            
+            // Post to Farcaster announcing the coin launch
+            try {
+              console.log("Posting coin launch announcement to Farcaster...");
+              const farcasterResponse = await fetch("/api/post-to-farcaster", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  sessionId,
+                  coinAddress: coinResult.metadata?.coinAddress,
+                  coinName: coinResult.metadata?.name,
+                  coinSymbol: coinResult.metadata?.symbol,
+                  participants: updatedSession.participants,
+                }),
+              });
+
+              if (farcasterResponse.ok) {
+                const farcasterData = await farcasterResponse.json();
+                console.log("Successfully posted to Farcaster:", farcasterData);
+              } else {
+                const error = await farcasterResponse.json().catch(() => null);
+                console.error("Failed to post to Farcaster:", farcasterResponse.status, error);
+              }
+            } catch (farcasterError) {
+              console.error("Error posting to Farcaster:", farcasterError);
+              // Don't fail the entire process if Farcaster posting fails
+            }
+
+            // Post to Twitter announcing the coin launch
+            try {
+              console.log("Posting coin launch announcement to Twitter...");
+              const twitterResponse = await fetch("/api/post-to-twitter", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  sessionId,
+                  coinAddress: coinResult.metadata?.coinAddress,
+                  coinName: coinResult.metadata?.name,
+                  coinSymbol: coinResult.metadata?.symbol,
+                  participants: updatedSession.participants,
+                }),
+              });
+
+              if (twitterResponse.ok) {
+                const twitterData = await twitterResponse.json();
+                console.log("Successfully posted to Twitter:", twitterData);
+              } else {
+                const error = await twitterResponse.json().catch(() => null);
+                console.error("Failed to post to Twitter:", twitterResponse.status, error);
+              }
+            } catch (twitterError) {
+              console.error("Error posting to Twitter:", twitterError);
+              // Don't fail the entire process if Twitter posting fails
+            }
           }
         } catch (genError) {
           console.error("Error in coin generation process:", genError);
@@ -243,6 +308,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
         } finally {
           setIsGeneratingMetadata(false);
           setIsGeneratingCoin(false);
+          setIsPostingToSocials(false);
         }
       }
       
@@ -464,7 +530,10 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      {isGeneratingMetadata ? "Generating coin metadata ... (please don't close the app)" : isGeneratingCoin ? "Launching coin..." : "Joining..."}
+                      {isGeneratingMetadata ? "Generating coin metadata ... (please don't close the app)" : 
+                       isGeneratingCoin ? "Launching coin..." : 
+                       isPostingToSocials ? "Coin launched 🚀! Announcing on socials ...." : 
+                       "Joining..."}
                     </>
                   ) : (
                     <>
