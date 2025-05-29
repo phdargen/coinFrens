@@ -21,7 +21,7 @@ export default function Home() {
 
   // Render a loading state during SSR/before hydration
   if (!mounted) {
-    return <LoadingComponent text="Loading CoinJoin..." />;
+    return <LoadingComponent text="Loading CoinJam..." />;
   }
 
   return (

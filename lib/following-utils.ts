@@ -80,6 +80,7 @@ export class FollowingChecker {
 
     // Get following status
     const followingStatus = await this.checkFollowingStatus(userFidNumber, creatorFidNumber);
+    console.log("Following status for user", userFid, "and creator", creatorFid, ":", followingStatus);
 
     switch (allowedToJoin) {
       case "followers":
@@ -104,7 +105,7 @@ export class FollowingChecker {
         if (!followingStatus.areMutualFollows) {
           return { 
             canJoin: false, 
-            reason: "You and session creator have to follow each other" 
+            reason: "No frens" 
           };
         }
         break;

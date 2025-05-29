@@ -145,7 +145,7 @@ export async function generateCoinMetadata({
   const baseMetadata: CoinMetadata = {
     name: resultData.name,
     symbol: resultData.symbol,
-    description: `${resultData.description}\nCoinJoined by ${Object.keys(participants)
+    description: `${resultData.description}\nCoinJammed by ${Object.keys(participants)
         .map(fid => `@${participants[fid].username || fid}`)
         .join(', ')}`,
     imageUrl: "" // Will be set after image generation

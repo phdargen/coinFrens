@@ -115,10 +115,10 @@ export async function GET(request: Request) {
     return new NextResponse(`
       <!DOCTYPE html>
       <html>
-        <head><title>CoinJoin Session</title></head>
+        <head><title>CoinJam Session</title></head>
         <body style="margin:0; background:#000; display:flex; justify-content:center; align-items:center; min-height:100vh;">
           <div style="color:white; text-align:center;">
-            <h1>CoinJoin Session</h1>
+            <h1>CoinJam Session</h1>
             <p>Something went wrong loading the session details.</p>
           </div>
         </body>

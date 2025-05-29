@@ -115,7 +115,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         ? ` with ${otherParticipants.join(', ')}${otherParticipants.length === 3 ? ', ...' : ''}`
         : '';
       
-      const text = `I coined ${session.metadata.name} (${session.metadata.symbol})${otherUsersText} with CoinJoin.`;
+      const text = `I coined ${session.metadata.name} (${session.metadata.symbol})${otherUsersText} with CoinJam.`;
       
       sdk.actions.composeCast({
         text,
@@ -211,7 +211,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                       <ShieldCheck className="h-3.5 w-3.5 mr-1 text-primary/80" />
                       {session.allowedToJoin === "followers" && "Followers Only"}
                       {session.allowedToJoin === "following" && "Following Only"}
-                      {session.allowedToJoin === "frens" && "Mutuals Only"}
+                      {session.allowedToJoin === "frens" && "Frens Only"}
                     </div>
                   )}
                   {hasMinTalentScore && (
