@@ -18,14 +18,14 @@ export class FollowingChecker {
    */
   async checkFollowingStatus(userFid: number, creatorFid: number): Promise<FollowingStatus> {
     try {
-      // Get the creator's followers and following lists
-      const [creatorFollowers, creatorFollowing] = await Promise.all([
-        this.warpcastService.getFollowers(creatorFid),
+      // Get both user's and creator's following lists to check relationships
+      const [userFollowing, creatorFollowing] = await Promise.all([
+        this.warpcastService.getFollowing(userFid),
         this.warpcastService.getFollowing(creatorFid)
       ]);
 
-      // Check if user follows creator (user is in creator's followers list)
-      const userFollowsCreator = creatorFollowers.some((follower: WarpcastUser) => follower.fid === userFid);
+      // Check if user follows creator (creator is in user's following list)
+      const userFollowsCreator = userFollowing.users.some((following: WarpcastUser) => following.fid === creatorFid);
       
       // Check if creator follows user (user is in creator's following list)
       const creatorFollowsUser = creatorFollowing.users.some((following: WarpcastUser) => following.fid === userFid);

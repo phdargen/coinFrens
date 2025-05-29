@@ -537,7 +537,9 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                     </>
                   ) : (
                     <>
-                      {joinPermission?.canJoin ? "Join" : `Join (${joinPermission?.reason})`}
+                      {!joinPermission ? "Loading..." : 
+                       joinPermission.canJoin ? "Join" : 
+                       joinPermission.reason ? `Join (${joinPermission.reason})` : "Join"}
                     </>
                   )}
                 </Button>
