@@ -57,7 +57,7 @@ export async function GET(request: Request) {
         title: status === 'complete' ? "View Coin 🪙" : status === 'generating' ? "Check Status ⏳" : "Join Session 🤝",
         action: {
           type: "launch_frame",
-          name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "CoinJoin",
+          name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "CoinJam",
           url: sessionPageUrl,
           splashImageUrl: process.env.NEXT_PUBLIC_SPLASH_IMAGE_URL,
           splashBackgroundColor: `#${process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR || '667eea'}`,
@@ -66,8 +66,8 @@ export async function GET(request: Request) {
     };
 
     const title = status === 'complete' && coinName 
-      ? `${coinName} (${coinSymbol}) - CoinJoin Session`
-      : `${creatorName}'s CoinJam Session - CoinJoin`;
+      ? `${coinName} (${coinSymbol}) - CoinJam Session`
+      : `${creatorName}'s CoinJam Session`;
 
     const html = `
       <!DOCTYPE html>

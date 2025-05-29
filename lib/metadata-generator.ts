@@ -62,7 +62,7 @@ export async function generateCoinMetadata({
     name: typeof resultData.name === 'string' ? resultData.name : "Unnamed Coin",
     symbol: typeof resultData.symbol === 'string' ? resultData.symbol : "COIN",
     description: typeof resultData.description === 'string' 
-      ? `${resultData.description}\nCoinJoined by ${Object.keys(participants)
+      ? `${resultData.description}\nCoinJammed by ${Object.keys(participants)
           .map(fid => `@${participants[fid].username || fid}`)
           .join(', ')}`
       : "A community-generated cryptocurrency",
