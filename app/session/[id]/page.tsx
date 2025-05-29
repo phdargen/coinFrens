@@ -11,7 +11,7 @@ import { LoadingComponent, ErrorComponent } from "@/app/components/UIComponents"
 import { Header } from "@/app/components/Header";
 import { getFarcasterUserId } from "@/lib/farcaster-utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users, ArrowLeft, Share2, ExternalLink, Sparkles, ShieldCheck, BarChartBig, Image as ImageIcon } from "lucide-react";
 import { sdk } from '@farcaster/frame-sdk';

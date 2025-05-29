@@ -1,12 +1,15 @@
 import { CoinSession } from "@/lib/types";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Trophy, ExternalLink } from "lucide-react";
+import { Trophy, ExternalLink, ShoppingCart, Share2 } from "lucide-react";
 import { useViewProfile, useOpenUrl } from '@coinbase/onchainkit/minikit';
+import { useBalance } from 'wagmi';
+import { useAccount } from 'wagmi';
+import { CollectModal } from './CollectModal';
+import { sdk } from '@farcaster/frame-sdk';
 
 interface CompletedCoinsListProps {
   sessions: CoinSession[];
@@ -15,6 +18,23 @@ interface CompletedCoinsListProps {
 export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
   const viewProfile = useViewProfile();
   const openUrl = useOpenUrl();
+  const { address } = useAccount();
+  const [collectModalOpen, setCollectModalOpen] = useState(false);
+  const [selectedCoin, setSelectedCoin] = useState<CoinSession | undefined>(undefined);
+  const [mounted, setMounted] = useState(false);
+  
+  // Get ETH balance - only after component mounts
+  const { data: ethBalance } = useBalance({
+    address: address,
+    query: {
+      enabled: mounted && !!address,
+    },
+  });
+
+  // Ensure component is mounted before rendering client-specific content
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Referrer address for Zora links
   const ZORA_REFERRER = "0xda641da2646a3c08f7689077b99bacd7272ba0aa";
@@ -25,12 +45,41 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
     }
   }, [viewProfile]);
 
+  const handleCollectClick = useCallback((session: CoinSession) => {
+    setSelectedCoin(session);
+    setCollectModalOpen(true);
+  }, []);
+
+  const handleShare = useCallback((session: CoinSession) => {
+    if (!session.metadata?.coinAddress) return;
+    
+    const zoraUrl = `https://zora.co/coin/base:${session.metadata.coinAddress}?referrer=${ZORA_REFERRER}`;
+    const text = `Check out ${session.metadata.name} (${session.metadata.symbol}) on Zora!`;
+    
+    sdk.actions.composeCast({
+      text,
+      embeds: [zoraUrl]
+    });
+  }, []);
+
   const getIpfsImageUrl = (ipfsUri?: string) => {
     if (!ipfsUri) return "/coinFrens.png";
+    
+    // Handle IPFS URIs
     if (ipfsUri.startsWith("ipfs://")) {
-      return `https://ipfs.io/ipfs/${ipfsUri.slice(7)}`;
+      const hash = ipfsUri.slice(7);
+      if (hash) {
+        return `https://ipfs.io/ipfs/${hash}`;
+      }
     }
-    return ipfsUri;
+    
+    // Handle HTTP/HTTPS URLs
+    if (ipfsUri.startsWith("http://") || ipfsUri.startsWith("https://")) {
+      return ipfsUri;
+    }
+    
+    // Fallback for any other format
+    return "/coinFrens.png";
   };
 
   if (sessions.length === 0) {
@@ -45,6 +94,44 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
         <p className="text-sm text-muted-foreground/70">
           Join sessions to help create amazing coins!
         </p>
+      </div>
+    );
+  }
+
+  // Show loading state until mounted to prevent hydration issues
+  if (!mounted) {
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-6">
+          {sessions.map((session) => (
+            <Card key={session.id} className="border bg-gradient-to-br from-muted/30 to-muted/10">
+              <CardHeader className="text-center pb-4">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-border/50 shadow-lg bg-gradient-to-br from-primary/20 to-primary/5">
+                    <div className="w-full h-full bg-muted/50 animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-6 w-32 bg-muted/50 animate-pulse rounded" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex flex-col items-center space-y-2">
+                      <div className="w-20 h-20 bg-muted/50 animate-pulse rounded-full" />
+                      <div className="h-4 w-16 bg-muted/50 animate-pulse rounded" />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <div className="flex-1 h-9 bg-muted/50 animate-pulse rounded" />
+                  <div className="flex-1 h-9 bg-muted/50 animate-pulse rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -71,10 +158,8 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
                       alt={metadata?.name || "Coin"}
                       fill
                       className="object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = "/coinFrens.png";
-                      }}
+                      sizes="192px"
+                      priority={false}
                     />
                   </div>
                   
@@ -111,7 +196,7 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
                               className="object-cover"
                             />
                             <AvatarFallback className="text-base bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
-                              {(user.username || user.fid).slice(0, 2).toUpperCase()}
+                              {(user.username || user.fid)?.toString().slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                         </div>
@@ -119,7 +204,7 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
                           onClick={() => handleViewProfile(typeof user.fid === 'string' && user.fid.startsWith('wallet-') ? undefined : Number(user.fid))}
                           className="text-sm text-center text-muted-foreground font-medium truncate w-full hover:text-primary hover:underline transition-colors cursor-pointer"
                         >
-                          {user.username || `User ${user.fid.length > 10 ? user.fid.slice(0, 6) + '...' : user.fid}`}
+                          {user.username || `User ${String(user.fid).length > 10 ? String(user.fid).slice(0, 6) + '...' : user.fid}`}
                         </button>
                       </div>
                     ))}
@@ -127,34 +212,43 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
+                <div className="space-y-2 pt-2">
+                  {/* Collect Button - Full Width */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+                    onClick={() => handleCollectClick(session)}
+                  >
+                    <ShoppingCart className="h-3 w-3" />
+                    Collect
+                  </Button>
+                  
+                  {/* Bottom Row - Half Width Buttons */}
                   {metadata?.coinAddress && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 gap-2"
-                      onClick={() => {
-                        const zoraUrl = `https://zora.co/coin/base:${metadata.coinAddress}?referrer=${ZORA_REFERRER}`;
-                        openUrl(zoraUrl);
-                      }}
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      View on Zora
-                    </Button>
-                  )}
-                  {metadata?.ipfsMetadataUri && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 gap-2"
-                      onClick={() => {
-                        const ipfsUrl = `https://ipfs.io/ipfs/${metadata.ipfsMetadataUri!.replace('ipfs://', '')}`;
-                        openUrl(ipfsUrl);
-                      }}
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      View Metadata
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-2"
+                        onClick={() => {
+                          const zoraUrl = `https://zora.co/coin/base:${metadata.coinAddress}?referrer=${ZORA_REFERRER}`;
+                          openUrl(zoraUrl);
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        View on Zora
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-2"
+                        onClick={() => handleShare(session)}
+                      >
+                        <Share2 className="h-3 w-3" />
+                        Share
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -162,6 +256,16 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
           );
         })}
       </div>
+      
+      {/* Collect Modal */}
+      {mounted && (
+        <CollectModal
+          isOpen={collectModalOpen}
+          onClose={() => setCollectModalOpen(false)}
+          session={selectedCoin}
+          ethBalance={ethBalance?.value}
+        />
+      )}
     </div>
   );
 } 
