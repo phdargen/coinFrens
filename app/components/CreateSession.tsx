@@ -53,8 +53,8 @@ export function CreateSession() {
       return;
     }
     
-    // Allow creation without Farcaster if wallet is connected
-    if (!context && !address) {
+    // Require both wallet connection and Farcaster context
+    if (!address || !context) {
       setShowConnectWalletPrompt(true);
       return;
     }
@@ -293,9 +293,9 @@ export function CreateSession() {
       {showConnectWalletPrompt && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-lg p-6 w-full max-w-sm text-center shadow-xl">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">Connect Wallet</h3>
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Connection Required</h3>
             <p className="text-muted-foreground mb-6">
-              Please sign in to create a session.
+              Please connect both your wallet and Farcaster account to create a session.
             </p>
             <Button onClick={() => setShowConnectWalletPrompt(false)} variant="outline" className="w-full">
               Close

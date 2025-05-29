@@ -39,7 +39,11 @@ export async function POST(request: Request) {
     console.log("Testing CDP Smart Account functionality...");
 
     // Initialize CDP client
-    const cdp = new CdpClient();
+    const cdp = new CdpClient({
+      apiKeyId: process.env.CDP_API_KEY_ID,
+      apiKeySecret: process.env.CDP_API_KEY_SECRET,
+      walletSecret: process.env.CDP_WALLET_SECRET
+    });
 
     // Get or create an account
     const name = "Account1";
