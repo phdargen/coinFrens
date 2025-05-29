@@ -59,12 +59,18 @@ export async function POST(request: Request) {
 
     console.log("Creating coin with CDP Smart Account...");
 
+    // Check if the CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET are set
+    if (!process.env.CDP_API_KEY_ID || !process.env.CDP_API_KEY_SECRET || !process.env.CDP_WALLET_SECRET) {
+      throw new Error("CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET must be set in environment variables");
+    }
+
     // Initialize CDP client
     const cdp = new CdpClient({
       apiKeyId: process.env.CDP_API_KEY_ID,
       apiKeySecret: process.env.CDP_API_KEY_SECRET,
       walletSecret: process.env.CDP_WALLET_SECRET,
     });
+    console.log("CDP client initialized", cdp);
 
     // Get required environment variables
     const ownerName = process.env.SMART_ACCOUNT_OWNER_NAME;
