@@ -318,6 +318,64 @@ export async function POST(request: Request) {
       }
     }
 
+    // Post to Farcaster announcing the coin launch
+    try {
+      console.log("Posting coin launch announcement to Farcaster...");
+      const farcasterResponse = await fetch("/api/post-to-farcaster", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          coinAddress,
+          coinName: metadata.name,
+          coinSymbol: metadata.symbol,
+          participants: session.participants,
+        }),
+      });
+
+      if (farcasterResponse.ok) {
+        const farcasterData = await farcasterResponse.json();
+        console.log("Successfully posted to Farcaster:", farcasterData);
+      } else {
+        const error = await farcasterResponse.json().catch(() => null);
+        console.error("Failed to post to Farcaster:", farcasterResponse.status, error);
+      }
+    } catch (farcasterError) {
+      console.error("Error posting to Farcaster:", farcasterError);
+      // Don't fail the entire coin creation process if Farcaster posting fails
+    }
+
+    // Post to Twitter announcing the coin launch
+    try {
+      console.log("Posting coin launch announcement to Twitter...");
+      const twitterResponse = await fetch("/api/post-to-twitter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          coinAddress,
+          coinName: metadata.name,
+          coinSymbol: metadata.symbol,
+          participants: session.participants,
+        }),
+      });
+
+      if (twitterResponse.ok) {
+        const twitterData = await twitterResponse.json();
+        console.log("Successfully posted to Twitter:", twitterData);
+      } else {
+        const error = await twitterResponse.json().catch(() => null);
+        console.error("Failed to post to Twitter:", twitterResponse.status, error);
+      }
+    } catch (twitterError) {
+      console.error("Error posting to Twitter:", twitterError);
+      // Don't fail the entire coin creation process if Twitter posting fails
+    }
+
     return NextResponse.json({ 
       success: true, 
       sessionId,

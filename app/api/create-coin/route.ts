@@ -161,6 +161,35 @@ export async function POST(request: Request) {
           });
         }
       }
+
+      // Post to Farcaster announcing the coin launch
+      try {
+        console.log("Posting coin launch announcement to Farcaster...");
+        const farcasterResponse = await fetch("/api/post-to-farcaster", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId,
+            coinAddress,
+            coinName: session.metadata.name,
+            coinSymbol: session.metadata.symbol,
+            participants: session.participants,
+          }),
+        });
+
+        if (farcasterResponse.ok) {
+          const farcasterData = await farcasterResponse.json();
+          console.log("Successfully posted to Farcaster:", farcasterData);
+        } else {
+          const error = await farcasterResponse.json().catch(() => null);
+          console.error("Failed to post to Farcaster:", farcasterResponse.status, error);
+        }
+      } catch (farcasterError) {
+        console.error("Error posting to Farcaster:", farcasterError);
+        // Don't fail the entire coin creation process if Farcaster posting fails
+      }
     } else {
       await updateSessionStatus(sessionId, "txFailed");
     }

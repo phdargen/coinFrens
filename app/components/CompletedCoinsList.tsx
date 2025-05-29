@@ -11,6 +11,10 @@ import { useAccount } from 'wagmi';
 import { CollectModal } from './CollectModal';
 import { sdk } from '@farcaster/frame-sdk';
 
+// Referrer address for Zora links
+const ZORA_REFERRER = process.env.INTEGRATOR_WALLET_ADDRESS;
+const getZoraUrl = (coinAddress: string) => `https://zora.co/coin/base:${coinAddress}?referrer=${ZORA_REFERRER}`;
+
 interface CompletedCoinsListProps {
   sessions: CoinSession[];
 }
@@ -36,9 +40,6 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
     setMounted(true);
   }, []);
   
-  // Referrer address for Zora links
-  const ZORA_REFERRER = "0xda641da2646a3c08f7689077b99bacd7272ba0aa";
-
   const handleViewProfile = useCallback((fid: number | undefined) => {
     if (fid) {
       viewProfile(fid);
@@ -53,7 +54,7 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
   const handleShare = useCallback((session: CoinSession) => {
     if (!session.metadata?.coinAddress) return;
     
-    const zoraUrl = `https://zora.co/coin/base:${session.metadata.coinAddress}?referrer=${ZORA_REFERRER}`;
+    const zoraUrl = getZoraUrl(session.metadata.coinAddress);
     const text = `Check out ${session.metadata.name} (${session.metadata.symbol}) on Zora!`;
     
     sdk.actions.composeCast({
@@ -232,7 +233,8 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
                         size="sm"
                         className="flex-1 gap-2"
                         onClick={() => {
-                          const zoraUrl = `https://zora.co/coin/base:${metadata.coinAddress}?referrer=${ZORA_REFERRER}`;
+                          if (!metadata.coinAddress) return;
+                          const zoraUrl = getZoraUrl(metadata.coinAddress);
                           openUrl(zoraUrl);
                         }}
                       >

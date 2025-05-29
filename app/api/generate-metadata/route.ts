@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession, updateSessionStatus, updateSessionMetadata } from "@/lib/session-client";
-import { generateCoinMetadata } from '@/lib/metadata-generator';
+import { generateCoinMetadata } from '@/lib/metadata-generator-v2';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -58,7 +58,8 @@ export async function POST(request: Request) {
     const generatedMetadata = await generateCoinMetadata({
       participants: session.participants,
       sessionId,
-      pinataJwt
+      pinataJwt,
+      session
     });
 
     console.log("Generated metadata:", generatedMetadata);

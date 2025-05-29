@@ -464,7 +464,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      {isGeneratingMetadata ? "Generating coin metadata..." : isGeneratingCoin ? "Launching coin..." : "Joining..."}
+                      {isGeneratingMetadata ? "Generating coin metadata ... (please don't close the app)" : isGeneratingCoin ? "Launching coin..." : "Joining..."}
                     </>
                   ) : (
                     <>

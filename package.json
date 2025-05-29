@@ -12,6 +12,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^1.2.18",
     "@ai-sdk/openai": "^1.3.21",
     "@coinbase/cdp-sdk": "^1.10.0",
     "@coinbase/onchainkit": "^0.38.13",
@@ -33,10 +34,13 @@
     "lucide-react": "^0.511.0",
     "nanoid": "^5.1.5",
     "next": "^14.2.15",
+    "openai": "^5.0.0",
     "react": "^18",
     "react-dom": "^18",
+    "sharp": "^0.34.2",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "twitter-api-v2": "^1.23.2",
     "viem": "^2.30.1",
     "wagmi": "^2.15.4"
   },
