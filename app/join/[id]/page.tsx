@@ -530,7 +530,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      {isGeneratingMetadata ? "Generating coin metadata ... (please don't close the app)" : 
+                      {isGeneratingMetadata ? "Generating coin metadata ..." : 
                        isGeneratingCoin ? "Launching coin..." : 
                        isPostingToSocials ? "Coin launched 🚀! Announcing on socials ...." : 
                        "Joining..."}
@@ -544,6 +544,11 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                   )}
                 </Button>
                 
+                {isSubmitting && (
+                  <p className="text-destructive text-sm text-center font-medium mt-2">
+                    Please keep the app open!
+                  </p>
+                )}
               </form>
             </CardContent>
           </Card>

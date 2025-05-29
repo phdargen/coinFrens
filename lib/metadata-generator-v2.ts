@@ -206,7 +206,7 @@ export async function generateCoinMetadata({
             
             // Save the processed image locally
             const pfpFileName = `pfp-${sessionId}-${i}-${Date.now()}.${finalFormat}`;
-            const pfpFilePath = path.join(process.cwd(), pfpFileName);
+            const pfpFilePath = path.join('/tmp', pfpFileName);
             fs.writeFileSync(pfpFilePath, processedBuffer);
             console.log(`PFP image saved as ${pfpFileName} (${originalFormat} → ${finalFormat})`);
             

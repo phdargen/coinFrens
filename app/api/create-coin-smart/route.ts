@@ -60,7 +60,11 @@ export async function POST(request: Request) {
     console.log("Creating coin with CDP Smart Account...");
 
     // Initialize CDP client
-    const cdp = new CdpClient();
+    const cdp = new CdpClient({
+      apiKeyId: process.env.CDP_API_KEY_ID,
+      apiKeySecret: process.env.CDP_API_KEY_SECRET,
+      walletSecret: process.env.CDP_WALLET_SECRET,
+    });
 
     // Get required environment variables
     const ownerName = process.env.SMART_ACCOUNT_OWNER_NAME;
