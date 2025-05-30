@@ -268,6 +268,9 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
             setIsGeneratingCoin(false);
             setIsPostingToSocials(true);
             
+            // Wait 10 seconds before posting to socials
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            
             // Post to Farcaster announcing the coin launch
             try {
               console.log("Posting coin launch announcement to Farcaster...");

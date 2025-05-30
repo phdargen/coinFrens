@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       version: "next",
       imageUrl,
       button: {
-        title: status === 'complete' ? "View Coin 🪙" : status === 'generating' ? "Check Status ⏳" : "Join Session 🤝",
+        title: status === 'complete' ? "View Coin 🪙" : status === 'generating' ? "Check Status ⏳" : "Join Coin 🤝",
         action: {
           type: "launch_frame",
           name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "CoinJam",

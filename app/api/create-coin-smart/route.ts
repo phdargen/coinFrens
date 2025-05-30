@@ -115,7 +115,7 @@ export async function POST(request: Request) {
     const coinParams = {
       name: metadata.name,
       symbol: metadata.symbol,
-      uri: metadata.zoraTokenUri,
+      uri: metadata.zoraTokenUri || metadata.ipfsMetadataUri,
       payoutRecipient: smartAccount.address,
       platformReferrer: smartAccount.address,
       description: metadata.description,
@@ -299,7 +299,10 @@ export async function POST(request: Request) {
 
     // Send notifications to participants about successful coin creation
     if (session.participants) {
+      console.log("DEBUG: All session participants:", Object.keys(session.participants), Object.values(session.participants).map(p => ({ fid: p.fid, username: p.username })));
+      
       const notificationEnabledFids = await getAllNotificationEnabledUsers();
+      console.log("DEBUG: All notification-enabled FIDs:", notificationEnabledFids);
       
       const eligibleFids = Object.values(session.participants)
         .filter(participant => 
@@ -310,6 +313,8 @@ export async function POST(request: Request) {
           !isNaN(participantFid) && 
           notificationEnabledFids.includes(participantFid)
         );
+      
+      console.log("DEBUG: Eligible FIDs for notifications:", eligibleFids);
       
       if (eligibleFids.length > 0) {
         const batchResult = await sendBatchNotifications({
@@ -325,6 +330,8 @@ export async function POST(request: Request) {
           notificationsDisabled: batchResult.notificationsDisabled,
           failed: batchResult.failed
         });
+      } else {
+        console.log("DEBUG: No eligible FIDs found for notifications");
       }
     }
 
