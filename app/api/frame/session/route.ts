@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/session-client';
 
 // Mark this route as dynamic since it uses request.url
 export const dynamic = 'force-dynamic';
@@ -7,14 +8,27 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const sessionId = searchParams.get('sessionId') || '';
-    const creatorName = searchParams.get('creatorName') || 'Unknown Creator';
-    const status = searchParams.get('status') || 'pending';
-    const maxParticipants = parseInt(searchParams.get('maxParticipants') || '4');
-    const participantCount = parseInt(searchParams.get('participantCount') || '0');
-    const coinName = searchParams.get('coinName') || '';
-    const coinSymbol = searchParams.get('coinSymbol') || '';
-    const participants = searchParams.get('participants') || '';
+    const sessionId = searchParams.get('sessionId');
+    
+    if (!sessionId) {
+      return new NextResponse('Session ID is required', { status: 400 });
+    }
+
+    // Fetch session data internally
+    const session = await getSession(sessionId);
+    
+    if (!session) {
+      return new NextResponse('Session not found', { status: 404 });
+    }
+
+    // Extract data from session
+    const creatorName = session.creatorName || 'Unknown Creator';
+    const status = session.status;
+    const maxParticipants = session.maxParticipants;
+    const participants = session.participants || {};
+    const participantCount = Object.keys(participants).length;
+    const coinName = session.metadata?.name || '';
+    const coinSymbol = session.metadata?.symbol || '';
 
     const baseUrl = process.env.NEXT_PUBLIC_URL;
     
@@ -22,28 +36,15 @@ export async function GET(request: Request) {
     const isDevelopment = process.env.NODE_ENV === 'development';
     const effectiveBaseUrl = isDevelopment ? 'http://localhost:3000' : baseUrl;
     
-    // Simple OG image URL
+    // Simple OG image URL - only pass sessionId
     const ogImageParams = new URLSearchParams({
       sessionId,
-      creatorName,
-      status,
-      maxParticipants: maxParticipants.toString(),
-      participantCount: participantCount.toString(),
     });
-    
-    if (participants) {
-      ogImageParams.set('participants', participants);
-    }
-    
-    if (status === 'complete' && coinName) {
-      ogImageParams.set('coinName', coinName);
-      ogImageParams.set('coinSymbol', coinSymbol);
-    }
     
     // Fix double slash issue by ensuring baseUrl doesn't end with slash when concatenating
     const cleanBaseUrl = effectiveBaseUrl?.endsWith('/') ? effectiveBaseUrl.slice(0, -1) : effectiveBaseUrl;
     const imageUrl = `${cleanBaseUrl}/api/og/session?${ogImageParams.toString()}`;
-    const sessionPageUrl = `${cleanBaseUrl}/session/${sessionId}`;
+    const joinPageUrl = `${cleanBaseUrl}/join/${sessionId}`;
 
     // Simple description
     const remainingSpots = maxParticipants - participantCount;
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
         action: {
           type: "launch_frame",
           name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "CoinJam",
-          url: sessionPageUrl,
+          url: status === 'complete' ? `${cleanBaseUrl}/session/${sessionId}` : joinPageUrl,
           splashImageUrl: process.env.NEXT_PUBLIC_SPLASH_IMAGE_URL,
           splashBackgroundColor: `#${process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR || '667eea'}`,
         },

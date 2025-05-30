@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { getSession } from '@/lib/session-client';
 
 // Force dynamic rendering for fresh image generation
 export const dynamic = 'force-dynamic';
@@ -11,35 +12,61 @@ const size = {
 
 /**
  * GET handler for generating dynamic OpenGraph images for coin sessions
- * @param request - The incoming HTTP request with session data as query params
+ * @param request - The incoming HTTP request with session ID as query param
  * @returns ImageResponse - A dynamically generated image for OpenGraph
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     
-    const creatorName = searchParams.get('creatorName') || 'Unknown Creator';
-    const status = searchParams.get('status') || 'pending';
-    const maxParticipants = parseInt(searchParams.get('maxParticipants') || '4');
-    const participantCount = parseInt(searchParams.get('participantCount') || '0');
-    const coinName = searchParams.get('coinName') || '';
-    const coinSymbol = searchParams.get('coinSymbol') || '';
+    const sessionId = searchParams.get('sessionId');
+    
+    if (!sessionId) {
+      throw new Error('Session ID is required');
+    }
+
+    // Fetch session data internally
+    const session = await getSession(sessionId);
+    
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    // Extract data from session
+    const creatorName = session.creatorName || 'Unknown Creator';
+    const status = session.status;
+    const maxParticipants = session.maxParticipants;
+    const participants = session.participants || {};
+    const participantCount = Object.keys(participants).length;
+    const coinName = session.metadata?.name || '';
+    const coinSymbol = session.metadata?.symbol || '';
     
     // Get logo URL from environment variable
     const logoUrl = process.env.NEXT_PUBLIC_IMAGE_URL;
     
-    // Parse participants with working logic
-    let participants: Array<{fid: string, username: string, pfpUrl: string}> = [];
-    const participantsParam = searchParams.get('participants');
-    if (participantsParam) {
-      try {
-        participants = JSON.parse(participantsParam);
-      } catch (e) {
-        console.error('Failed to parse participants:', e);
-        console.error('Raw participants param:', participantsParam);
-        // Continue with empty participants array
-      }
+    // Convert participants object to array format expected by the UI
+    const participantArray: Array<{fid: string, username: string, pfpUrl: string}> = [];
+    
+    // Get creator first, then others
+    const creatorParticipant = participants[session.creatorFid];
+    if (creatorParticipant) {
+      participantArray.push({
+        fid: creatorParticipant.fid,
+        username: creatorParticipant.username || `User ${creatorParticipant.fid}`,
+        pfpUrl: creatorParticipant.pfpUrl || ''
+      });
     }
+    
+    // Add other participants
+    Object.values(participants).forEach(participant => {
+      if (participant.fid !== session.creatorFid) {
+        participantArray.push({
+          fid: participant.fid,
+          username: participant.username || `User ${participant.fid}`,
+          pfpUrl: participant.pfpUrl || ''
+        });
+      }
+    });
     
     const remainingSpots = maxParticipants - participantCount;
     
@@ -143,7 +170,7 @@ export async function GET(request: Request) {
             maxWidth: '1000px',
           }}>
             {Array.from({ length: maxParticipants }, (_, index) => {
-              const participant = participants[index];
+              const participant = participantArray[index];
               const hasParticipant = !!participant;
               const circleSize = maxParticipants > 4 ? '100px' : '120px';
               const fontSize = maxParticipants > 4 ? '28px' : '32px';

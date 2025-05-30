@@ -69,39 +69,13 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     // Get userFid inside the function to avoid dependency issues
     const currentUserFid = context ? getFarcasterUserId(context) : address ? `wallet-${address}` : "";
     
-    // Prepare participant data for the frame
-    const participants = session.participants || {};
-    const participantArray = Object.values(participants).map(p => ({
-      fid: p.fid,
-      username: p.username || `User ${p.fid}`,
-      pfpUrl: p.pfpUrl || ''
-    }));
-    
-    const participantCount = Object.keys(participants).length;
+    const participantCount = Object.keys(session.participants || {}).length;
     const baseUrl = process.env.NEXT_PUBLIC_URL || '';
     
-    // Build frame URL with session data
+    // Build simple frame URL with just session ID
     const frameParams = new URLSearchParams({
       sessionId: sessionId,
-      creatorName: session.creatorName || 'Unknown Creator',
-      status: session.status,
-      maxParticipants: session.maxParticipants.toString(),
-      participantCount: participantCount.toString(),
     });
-    
-    // Add participants data
-    if (participantArray.length > 0) {
-      frameParams.set('participants', JSON.stringify(participantArray));
-    }
-    
-    // Add coin metadata if session is complete
-    if (session.status === "complete" && session.metadata) {
-      frameParams.set('coinName', session.metadata.name);
-      frameParams.set('coinSymbol', session.metadata.symbol);
-      if (session.metadata.ipfsImageUri) {
-        frameParams.set('coinImageUrl', session.metadata.ipfsImageUri);
-      }
-    }
     
     // Fix double slash issue by ensuring baseUrl doesn't end with slash when concatenating
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -110,7 +84,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     
     if (session.status === "complete" && session.metadata) {
       // For completed coins, share with coin details and custom frame
-      const otherParticipants = Object.values(participants)
+      const otherParticipants = Object.values(session.participants || {})
         .filter(p => p.fid !== session.creatorFid)
         .map(p => p.username || `User ${p.fid}`);
       
@@ -130,8 +104,8 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       
       const isCreator = currentUserFid === session.creatorFid;
       const text = isCreator 
-        ? `Join my CoinJam session by adding your secret prompt fragment! ${remainingSpots} spots left!`
-        : `I joined @${session.creatorName}'s CoinJam session! Coin with us by adding your secret prompt fragment! ${remainingSpots} spots left`;
+        ? `Join my @coinjam session by adding your secret prompt fragment! ${remainingSpots} spots left!`
+        : `I joined @${session.creatorName}'s @coinjam session! Coin with us by adding your secret prompt fragment! ${remainingSpots} spots left`;
       
       sdk.actions.composeCast({
         text,
@@ -371,15 +345,6 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             </CardContent>
           </Card>
           
-          {/* Back Link */}
-          <div className="text-center">
-            <Button variant="ghost" asChild className="text-lg">
-              <a href="/join" className="group">
-                <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                Back
-              </a>
-            </Button>
-          </div>
         </div>
       </div>
     </main>

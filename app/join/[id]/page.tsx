@@ -576,7 +576,7 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
             <Button variant="ghost" asChild className="text-lg">
               <a href="/join" className="group">
                 <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                Back
+                All Jam Sessions
               </a>
             </Button>
           </div>
