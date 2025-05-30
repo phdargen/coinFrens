@@ -113,6 +113,7 @@ export async function generateCoinMetadata({
     name: z.string().describe("The name of the coin"),
     symbol: z.string().describe("The trading symbol for the coin (3-5 characters)"),
     description: z.string().describe("A short description of the coin. Max 200 characters."),
+    imagePrompt: z.string().describe("AI-generated art prompt for this meme coin. Should be fun, joyous and without text or famous likenesses."),
   });
 
   // Generate coin metadata using Google Gemini
@@ -125,11 +126,18 @@ export async function generateCoinMetadata({
     1. Name for the coin (should be catchy and relevant)
     2. Symbol for the coin (3-5 uppercase letters, no spaces)
     3. Description explaining the coin's concept (1-2 sentences)
+    4. Image prompt for AI-generated art for this meme coin
 
     The name and description should reflect the themes or ideas in the combined prompts.
     Be creative and fun with the coin concept!
     Keep description strictly about the combined user prompts, do not mention words like coin, meme, crypto, etc or introduce this as a coin, token.
-    No em dashes, hashtags, or delves. Max 200 characters.`,
+    No em dashes, hashtags, or delves. Max 200 characters.
+
+    For the image prompt: Create a fun, joyous visual description that captures the essence of the coin concept. 
+    The image prompt should be engaging and creative but must not include:
+    - Text, words, or letters in the image
+    - Famous people's likenesses or recognizable celebrities
+    - Any content that might violate content filters`,
   });
 
   // Log the raw result to understand its structure
@@ -139,7 +147,7 @@ export async function generateCoinMetadata({
   const resultData = aiResult.object;
 
   // Validate that AI returned all required fields
-  if (!resultData || typeof resultData.name !== 'string' || typeof resultData.symbol !== 'string' || typeof resultData.description !== 'string') {
+  if (!resultData || typeof resultData.name !== 'string' || typeof resultData.symbol !== 'string' || typeof resultData.description !== 'string' || typeof resultData.imagePrompt !== 'string') {
     throw new Error("AI failed to generate proper coin metadata");
   }
 
@@ -154,7 +162,7 @@ export async function generateCoinMetadata({
   };
 
   // Prepare image generation prompt with style and PFP considerations
-  let imagePrompt = `Create a visually appealing image for ${baseMetadata.name} (${baseMetadata.symbol}). ${baseMetadata.description}. Based on these themes: ${combinedPrompt}.`;
+  let imagePrompt = resultData.imagePrompt;
   
   // Add enhanced style description if specified and not "None"
   if (session.style && session.style !== "None") {
@@ -162,19 +170,8 @@ export async function generateCoinMetadata({
     const styleDescription = ART_STYLE_DESCRIPTIONS[session.style] || session.style;
     imagePrompt += ` Art Style: ${styleDescription}.`;
   }
-  
-  // Add PFP context if enabled
-  if (session.addPfps) {
-    const pfpUsers = Object.values(participants)
-      .filter(p => p.pfpUrl)
-      .map(p => p.username || p.fid)
     
-    if (pfpUsers.length > 0) {
-      imagePrompt += ` Include visual elements that represent the community members: ${pfpUsers.join(", ")}.`;
-    }
-  }
-  
-  imagePrompt += " The image should have vibrant colors, be iconic, and represent a meme coin. Make it memorable and shareable. No text in the image.";
+  imagePrompt += " No text in the image.";
 
   console.log("Final image prompt:", imagePrompt);
 
@@ -238,7 +235,7 @@ export async function generateCoinMetadata({
     response = await openaiClient.images.edit({
       model: "gpt-image-1",
       image: pfpImages.map(img => img.file),
-      prompt: imagePrompt + " Incorporate the attached pfp images in a creative way but do not use them repetitively.",
+      prompt: imagePrompt + " Incorporate the attached pfp images in a creative way but do not use them repetitively. It is VERY important that each of the pfps is refleceted in some way in the image.",
       quality: "low",
       n: 1,
       size: "1024x1024"
