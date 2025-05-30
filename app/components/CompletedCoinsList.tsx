@@ -55,7 +55,27 @@ export function CompletedCoinsList({ sessions }: CompletedCoinsListProps) {
     if (!session.metadata?.coinAddress) return;
     
     const zoraUrl = getZoraUrl(session.metadata.coinAddress);
-    const text = `Check out ${session.metadata.name} (${session.metadata.symbol}) on Zora!`;
+    
+    // Get all participants
+    const participants = session.participants || {};
+    const creatorParticipant = participants[session.creatorFid];
+    const otherParticipants = Object.values(participants).filter(p => p.fid !== session.creatorFid);
+    const allUsers = creatorParticipant ? [creatorParticipant, ...otherParticipants] : Object.values(participants);
+    
+    // Format participant list with "and" for the last entry
+    const formatParticipants = (users: typeof allUsers) => {
+      const usernames = users.map(user => `@${user.username || user.fid}`);
+      
+      if (usernames.length === 0) return '';
+      if (usernames.length === 1) return usernames[0];
+      if (usernames.length === 2) return `${usernames[0]} and ${usernames[1]}`;
+      
+      const lastUsername = usernames.pop();
+      return `${usernames.join(', ')} and ${lastUsername}`;
+    };
+    
+    const participantsList = formatParticipants(allUsers);
+    const text = `Check out ${session.metadata.name} (${session.metadata.symbol}) coined by ${participantsList}!`;
     
     sdk.actions.composeCast({
       text,

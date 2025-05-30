@@ -131,7 +131,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       const isCreator = currentUserFid === session.creatorFid;
       const text = isCreator 
         ? `Join my CoinJam session by adding your secret prompt fragment! ${remainingSpots} spots left!`
-        : `Join this CoinJam session by ${session.creatorName} and help create an amazing coin! ${remainingSpots} spots left!`;
+        : `I joined @${session.creatorName}'s CoinJam session! Coin with us by adding your secret prompt fragment! ${remainingSpots} spots left`;
       
       sdk.actions.composeCast({
         text,

@@ -158,7 +158,8 @@ export function CreateSession() {
               className="resize-none bg-muted/50"
             />
             <p className="text-sm text-muted-foreground">
-              This will be combined with other participants&apos; prompts to AI-generate your coin.
+              All prompts of a Jam Session will be combined to create your coin.
+              0.9% of the total supply will be fairly distributed to all frens.
             </p>
           </div>
 
@@ -175,7 +176,7 @@ export function CreateSession() {
               <SelectTrigger className="bg-muted/50">
                 <SelectValue placeholder="Select a style" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-44 overflow-y-auto">
                 {SESSION_STYLES.map((s) => (
                   <SelectItem key={s} value={s}>{s === "None" ? "Default (None)" : s}</SelectItem>
                 ))}

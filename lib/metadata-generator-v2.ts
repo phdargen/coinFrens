@@ -7,6 +7,7 @@ import path from "path";
 import sharp from "sharp";
 import { CoinMetadata, Participant, CoinSession } from "./types";
 import { generateZoraTokenUri } from "./pinata";
+import { ART_STYLE_DESCRIPTIONS } from "@/src/constants";
 
 export interface MetadataGenerationParams {
   participants: { [fid: string]: Participant };
@@ -111,7 +112,7 @@ export async function generateCoinMetadata({
   const coinMetadataSchema = z.object({
     name: z.string().describe("The name of the coin"),
     symbol: z.string().describe("The trading symbol for the coin (3-5 characters)"),
-    description: z.string().describe("A short description of the coin"),
+    description: z.string().describe("A short description of the coin. Max 200 characters."),
   });
 
   // Generate coin metadata using Google Gemini
@@ -127,7 +128,8 @@ export async function generateCoinMetadata({
 
     The name and description should reflect the themes or ideas in the combined prompts.
     Be creative and fun with the coin concept!
-    Keep description strictly about the combined user prompts, do not mention words like coin, meme, crypto, etc or introduce this as a coin, token.`,
+    Keep description strictly about the combined user prompts, do not mention words like coin, meme, crypto, etc or introduce this as a coin, token.
+    No em dashes, hashtags, or delves. Max 200 characters.`,
   });
 
   // Log the raw result to understand its structure
@@ -154,9 +156,11 @@ export async function generateCoinMetadata({
   // Prepare image generation prompt with style and PFP considerations
   let imagePrompt = `Create a visually appealing image for ${baseMetadata.name} (${baseMetadata.symbol}). ${baseMetadata.description}. Based on these themes: ${combinedPrompt}.`;
   
-  // Add style if specified and not "None"
-  if (session.style && session.style !== "None" && session.style !== "Custom") {
-    imagePrompt += ` Style: ${session.style}.`;
+  // Add enhanced style description if specified and not "None"
+  if (session.style && session.style !== "None") {
+    // Use enhanced description for predefined styles, or the custom style as-is
+    const styleDescription = ART_STYLE_DESCRIPTIONS[session.style] || session.style;
+    imagePrompt += ` Art Style: ${styleDescription}.`;
   }
   
   // Add PFP context if enabled
@@ -234,7 +238,7 @@ export async function generateCoinMetadata({
     response = await openaiClient.images.edit({
       model: "gpt-image-1",
       image: pfpImages.map(img => img.file),
-      prompt: imagePrompt + " Incorporate the attached images if suitable but do not use them repetitively.",
+      prompt: imagePrompt + " Incorporate the attached pfp images in a creative way but do not use them repetitively.",
       quality: "low",
       n: 1,
       size: "1024x1024"
