@@ -120,6 +120,30 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
     checkJoinPermission();
   }, [session, context, address, isMounted]);
 
+  // Handle redirect when user has already joined
+  useEffect(() => {
+    if (!isMounted || !session) return;
+
+    const getUserFid = () => {
+      if (context) {
+        return getFarcasterUserId(context);
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        return "372088"; // Use creator FID for testing in dev mode
+      }
+      
+      return address ? `wallet-${address}` : "";
+    };
+
+    const userFid = getUserFid();
+    const userHasJoined = !!session.participants?.[userFid];
+
+    if (userHasJoined) {
+      router.push(`/session/${sessionId}`);
+    }
+  }, [session, context, address, isMounted, router, sessionId]);
+
   const handleViewProfile = React.useCallback((fid: number | undefined) => {
     if (fid) {
       viewProfile(fid);
@@ -355,6 +379,12 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
     return <LoadingComponent text="Loading..." />;
   }
 
+  // Get all users with creator first, then others in join order
+  const participants = session.participants || {};
+  const creatorParticipant = participants[session.creatorFid];
+  const otherParticipants = Object.values(participants).filter(p => p.fid !== session.creatorFid);
+  const allUsers = creatorParticipant ? [creatorParticipant, ...otherParticipants] : Object.values(participants);
+
   // Calculate userFid with development fallback
   const getUserFid = () => {
     if (context) {
@@ -380,15 +410,8 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
   const hasMinTalentScore = session.minTalentScore !== undefined && session.minTalentScore !== null && session.minTalentScore > 0;
   const showSettingsIndicators = hasCustomStyle || hasPfpsInPrompt || hasRestrictedJoin || hasMinTalentScore;
 
-  // Get all users with creator first, then others in join order
-  const participants = session.participants || {};
-  const creatorParticipant = participants[session.creatorFid];
-  const otherParticipants = Object.values(participants).filter(p => p.fid !== session.creatorFid);
-  const allUsers = creatorParticipant ? [creatorParticipant, ...otherParticipants] : Object.values(participants);
-
+  // Show loading while redirecting for users who have already joined
   if (userHasJoined) {
-    // If user has already joined, redirect to the session page
-    router.push(`/session/${sessionId}`);
     return <LoadingComponent text="Redirecting..." />;
   }
 

@@ -18,6 +18,10 @@ export async function GET(request: Request) {
 
     const baseUrl = process.env.NEXT_PUBLIC_URL;
     
+    // For local development, override with localhost if baseUrl is production
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const effectiveBaseUrl = isDevelopment ? 'http://localhost:3000' : baseUrl;
+    
     // Simple OG image URL
     const ogImageParams = new URLSearchParams({
       sessionId,
@@ -36,8 +40,10 @@ export async function GET(request: Request) {
       ogImageParams.set('coinSymbol', coinSymbol);
     }
     
-    const imageUrl = `${baseUrl}/api/og/session?${ogImageParams.toString()}`;
-    const sessionPageUrl = `${baseUrl}/session/${sessionId}`;
+    // Fix double slash issue by ensuring baseUrl doesn't end with slash when concatenating
+    const cleanBaseUrl = effectiveBaseUrl?.endsWith('/') ? effectiveBaseUrl.slice(0, -1) : effectiveBaseUrl;
+    const imageUrl = `${cleanBaseUrl}/api/og/session?${ogImageParams.toString()}`;
+    const sessionPageUrl = `${cleanBaseUrl}/session/${sessionId}`;
 
     // Simple description
     const remainingSpots = maxParticipants - participantCount;

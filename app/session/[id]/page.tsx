@@ -91,7 +91,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     
     // Add participants data
     if (participantArray.length > 0) {
-      frameParams.set('participants', encodeURIComponent(JSON.stringify(participantArray)));
+      frameParams.set('participants', JSON.stringify(participantArray));
     }
     
     // Add coin metadata if session is complete
@@ -103,7 +103,10 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       }
     }
     
-    const frameUrl = `${baseUrl}/api/frame/session?${frameParams.toString()}`;
+    // Fix double slash issue by ensuring baseUrl doesn't end with slash when concatenating
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const frameUrl = `${cleanBaseUrl}/api/frame/session?${frameParams.toString()}`;
+    console.log(frameUrl);
     
     if (session.status === "complete" && session.metadata) {
       // For completed coins, share with coin details and custom frame

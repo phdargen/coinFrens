@@ -33,14 +33,10 @@ export async function GET(request: Request) {
     const participantsParam = searchParams.get('participants');
     if (participantsParam) {
       try {
-        // Try to parse without decoding first, then with decoding if that fails
-        try {
-          participants = JSON.parse(participantsParam);
-        } catch {
-          participants = JSON.parse(decodeURIComponent(participantsParam));
-        }
+        participants = JSON.parse(participantsParam);
       } catch (e) {
         console.error('Failed to parse participants:', e);
+        console.error('Raw participants param:', participantsParam);
         // Continue with empty participants array
       }
     }
@@ -142,13 +138,15 @@ export async function GET(request: Request) {
             display: 'flex',
             flexWrap: 'wrap',
             justifyContent: 'center',
-            gap: '20px',
+            gap: maxParticipants > 4 ? '15px' : '20px',
             marginBottom: '30px',
-            maxWidth: '800px',
+            maxWidth: '1000px',
           }}>
             {Array.from({ length: maxParticipants }, (_, index) => {
               const participant = participants[index];
               const hasParticipant = !!participant;
+              const circleSize = maxParticipants > 4 ? '100px' : '120px';
+              const fontSize = maxParticipants > 4 ? '28px' : '32px';
               
               if (hasParticipant && participant.pfpUrl) {
                 return (
@@ -162,8 +160,8 @@ export async function GET(request: Request) {
                     }}
                   >
                     <div style={{
-                      width: '120px',
-                      height: '120px',
+                      width: circleSize,
+                      height: circleSize,
                       borderRadius: '50%',
                       overflow: 'hidden',
                       border: '3px solid #0052FF',
@@ -190,7 +188,7 @@ export async function GET(request: Request) {
                       fontSize: '14px',
                       color: '#e2e8f0',
                       textAlign: 'center',
-                      maxWidth: '120px',
+                      maxWidth: circleSize,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -212,8 +210,8 @@ export async function GET(request: Request) {
                     }}
                   >
                     <div style={{
-                      width: '120px',
-                      height: '120px',
+                      width: circleSize,
+                      height: circleSize,
                       borderRadius: '50%',
                       border: '3px solid #0052FF',
                       backgroundColor: '#0052FF',
@@ -222,10 +220,10 @@ export async function GET(request: Request) {
                       justifyContent: 'center',
                     }}>
                       <div style={{
-                        fontSize: '32px',
+                        fontSize: fontSize,
                         color: 'white',
                       }}>
-                        ✓
+                        ✅
                       </div>
                     </div>
                     <div style={{
@@ -250,8 +248,8 @@ export async function GET(request: Request) {
                     }}
                   >
                     <div style={{
-                      width: '120px',
-                      height: '120px',
+                      width: circleSize,
+                      height: circleSize,
                       borderRadius: '50%',
                       border: '3px dashed #475569',
                       backgroundColor: 'rgba(71, 85, 105, 0.2)',
@@ -260,7 +258,7 @@ export async function GET(request: Request) {
                       justifyContent: 'center',
                     }}>
                       <div style={{
-                        fontSize: '32px',
+                        fontSize: fontSize,
                         color: '#64748b',
                       }}>
                         ?
@@ -270,7 +268,7 @@ export async function GET(request: Request) {
                       fontSize: '14px',
                       color: '#64748b',
                       textAlign: 'center',
-                      maxWidth: '120px',
+                      maxWidth: circleSize,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
