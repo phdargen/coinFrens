@@ -133,10 +133,11 @@ export async function generateCoinMetadata({
     Keep description strictly about the combined user prompts, do not mention words like coin, meme, crypto, etc or introduce this as a coin, token.
     No em dashes, hashtags, or delves. Max 200 characters.
 
-    For the image prompt: Create a fun, joyous visual description that captures the essence of the coin concept. 
+    For the image prompt: Create a fun, joyous visual description that captures the essence of the coin concept${session.style && session.style !== "None" ? ` in this art style: ${ART_STYLE_DESCRIPTIONS[session.style] || session.style}` : ''}. 
+    If faces are present, make sure they are realistic and not stylized.
     The image prompt should be engaging and creative but must not include:
     - Text, words, or letters in the image
-    - Famous people's likenesses or recognizable celebrities
+    - Famous people's likenesses or recognizable celebrities/brands 
     - Any content that might violate content filters`,
   });
 
@@ -161,18 +162,9 @@ export async function generateCoinMetadata({
     imageUrl: "" // Will be set after image generation
   };
 
-  // Prepare image generation prompt with style and PFP considerations
-  let imagePrompt = resultData.imagePrompt;
+  // Prepare image generation prompt 
+  const imagePrompt = resultData.imagePrompt;
   
-  // Add enhanced style description if specified and not "None"
-  if (session.style && session.style !== "None") {
-    // Use enhanced description for predefined styles, or the custom style as-is
-    const styleDescription = ART_STYLE_DESCRIPTIONS[session.style] || session.style;
-    imagePrompt += ` Art Style: ${styleDescription}.`;
-  }
-    
-  imagePrompt += " No text in the image.";
-
   console.log("Final image prompt:", imagePrompt);
 
   // Download PFP images if addPfps is enabled
@@ -230,27 +222,70 @@ export async function generateCoinMetadata({
   
   const startTime = Date.now();
   let response;
-  if (pfpImages.length > 0) {
-    // Use edit API when we have PFP images to incorporate
-    response = await openaiClient.images.edit({
-      model: "gpt-image-1",
-      image: pfpImages.map(img => img.file),
-      prompt: imagePrompt + " Incorporate the attached pfp images in a creative way but do not use them repetitively. It is VERY important that each of the pfps is refleceted in some way in the image.",
-      quality: "low",
-      n: 1,
-      size: "1024x1024"
-    });
-  } else {
-    // Use generate API when no PFP images
-    response = await openaiClient.images.generate({
-      model: "gpt-image-1",
-      prompt: imagePrompt,
-      quality: "low",
-      moderation: "low",
-      n: 1,
-      size: "1024x1024"
-    });
+  
+  // Retry logic for moderation blocks
+  const maxRetries = 1;
+  let attempt = 0;
+  
+  while (attempt <= maxRetries) {
+    try {
+      // Modify prompt slightly on retry to avoid moderation issues
+      let currentImagePrompt = imagePrompt;
+      if (attempt > 0) {
+        console.log(`Retry attempt ${attempt} - modifying prompt to avoid moderation issues...`);
+        // Make the prompt more generic and safe on retry
+        currentImagePrompt = currentImagePrompt
+          .replace(/\b(fight|battle|war|weapon|violence|death|kill|destroy)\b/gi, 'play')
+          .replace(/\b(scary|horror|dark|evil|demon|devil)\b/gi, 'cheerful')
+          .replace(/\b(nude|naked|sexy|adult)\b/gi, 'clothed');
+        currentImagePrompt += " Make it family-friendly, wholesome, and cheerful.";
+      }
+
+      if (pfpImages.length > 0) {
+        // Use edit API when we have PFP images to incorporate
+        response = await openaiClient.images.edit({
+          model: "gpt-image-1",
+          image: pfpImages.map(img => img.file),
+          prompt: currentImagePrompt + " Incorporate the attached pfp images in a creative way but do not use them repetitively. It is VERY important that each of the pfps is refleceted in some way in the image. If you draw any characters use the pfps as reference, do not add any random characters.",
+          quality: "medium",
+          n: 1,
+          size: "1024x1024"
+        });
+      } else {
+        // Use generate API when no PFP images
+        response = await openaiClient.images.generate({
+          model: "gpt-image-1",
+          prompt: currentImagePrompt,
+          quality: "medium",
+          moderation: "low",
+          n: 1,
+          size: "1024x1024"
+        });
+      }
+      
+      // If we get here, the request succeeded
+      break;
+      
+    } catch (error: any) {
+      console.error(`OpenAI image generation attempt ${attempt + 1} failed:`, error.message);
+      
+      // Check if this is a moderation block error and we haven't exceeded max retries
+      if (error.code === 'moderation_blocked' && attempt < maxRetries) {
+        console.log('Moderation blocked - will retry with modified prompt...');
+        attempt++;
+        continue;
+      }
+      
+      // If it's not a moderation error or we've exceeded retries, throw the error
+      throw error;
+    }
   }
+  
+  // Ensure response is defined
+  if (!response) {
+    throw new Error("Failed to generate image after all retry attempts");
+  }
+  
   const endTime = Date.now();
   const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
   console.log(`OpenAI API call completed in ${durationSeconds} seconds`);

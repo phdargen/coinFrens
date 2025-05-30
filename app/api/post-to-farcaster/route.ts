@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getSession } from "@/lib/session-client";
+import { GeneratedMetadata } from '@/lib/metadata-generator';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -15,11 +17,38 @@ const FarcasterPostCastSchema = z.object({
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { sessionId, coinAddress, coinName, coinSymbol, participants } = body;
+    const { sessionId } = body;
 
-    if (!sessionId || !coinAddress || !coinName || !coinSymbol) {
+    if (!sessionId) {
       return NextResponse.json(
-        { error: "Missing required parameters" },
+        { error: "Missing session ID" },
+        { status: 400 }
+      );
+    }
+
+    // Get session from database
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if the session has metadata
+    if (!session.metadata) {
+      return NextResponse.json(
+        { error: "Session metadata not found. Generate metadata first." },
+        { status: 400 }
+      );
+    }
+
+    const metadata = session.metadata as GeneratedMetadata;
+    
+    if (!metadata.coinAddress) {
+      return NextResponse.json(
+        { error: "Coin address not found in session metadata" },
         { status: 400 }
       );
     }
@@ -37,12 +66,12 @@ export async function POST(request: Request) {
 
     // Create Zora URL with referrer
     const ZORA_REFERRER = process.env.INTEGRATOR_WALLET_ADDRESS;
-    const zoraUrl = `https://zora.co/coin/base:${coinAddress}?referrer=${ZORA_REFERRER}`;
+    const zoraUrl = `https://zora.co/coin/base:${metadata.coinAddress}?referrer=${ZORA_REFERRER}`;
 
     // Format participant names for the cast
     let participantText = "";
-    if (participants && Object.keys(participants).length > 0) {
-      const participantNames = Object.values(participants)
+    if (session.participants && Object.keys(session.participants).length > 0) {
+      const participantNames = Object.values(session.participants)
         .map((p: any) => {
           const username = p.username || `User ${p.fid}`;
           // Add @ before usernames for Farcaster users (not wallet users)
@@ -66,7 +95,7 @@ export async function POST(request: Request) {
     }
 
     // Create the cast text
-    const castText = `${coinName} (${coinSymbol})${participantText} just launched 🚀`;
+    const castText = `${metadata.name} (${metadata.symbol})${participantText} just launched 🚀`;
 
     // Prepare the cast data
     const castData = {

@@ -314,8 +314,8 @@ export async function POST(request: Request) {
       if (eligibleFids.length > 0) {
         const batchResult = await sendBatchNotifications({
           fids: eligibleFids,
-          title: `"${metadata.symbol}" launched 🚀!`,
-          body: `You coined "${metadata.name}" with your frens via Smart Account!`,
+          title: `${metadata.symbol} launched 🚀!`,
+          body: `You coined "${metadata.name}" with your frens!`,
         });
         
         console.log("Launch notifications batch result:", {

@@ -30,7 +30,7 @@ export const ART_STYLE_DESCRIPTIONS: Record<string, string> = {
   "Ghibli": "Studio Ghibli style in modern setting. Whimsical, hand-drawn animation aesthetic, soft colors, detailed natural elements, magical realism atmosphere.",
   "Cyberpunk": "Cyberpunk aesthetic, neon lighting, moody cinematic color grading, deep shadows, high contrast, vibrant purples and blues, atmospheric glow, reflective surfaces, soft focus, futuristic urban texture.",
   "Pixel Art": "Retro pixel art style, 16-bit video game aesthetic, limited color palette, crisp geometric shapes, nostalgic gaming vibe, detailed sprite-work.",
-  "Ukiyo-e": "Traditional Japanese Ukiyo-e style, woodblock print texture, flat colors, bold outlines in an contemporary composition, traditional Japanese artistic techniques with modern subjects.",
+  "Ukiyo-e": "Traditional Japanese woodblock print texture, flat colors, bold outlines in an contemporary composition, traditional Japanese artistic techniques with modern subjects.",
   "Neoimpressionism": "Combine Impressionist and Post-Impressionist techniques with modern imagery, creating a fusion of Van Gogh's style with contemporary art, visible brushstrokes, vibrant colors, emotional expression.",
   "Vaporwave": "Vaporwave aesthetic, retro-futuristic synthwave vibes, neon pink and cyan gradients, geometric grids, marble textures, 80s nostalgia, dreamy pastel colors, glitch effects.",
   "Art Deco": "Art Deco style, geometric patterns, bold lines, metallic gold and black color scheme, luxury and elegance, symmetrical compositions, ornate decorative elements, 1920s glamour.",

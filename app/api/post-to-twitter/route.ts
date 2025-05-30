@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { TwitterApi } from 'twitter-api-v2';
+import { getSession } from "@/lib/session-client";
+import { GeneratedMetadata } from '@/lib/metadata-generator';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -61,11 +63,38 @@ async function getXUsername(fid: string): Promise<string | null> {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { sessionId, coinAddress, coinName, coinSymbol, participants } = body;
+    const { sessionId } = body;
 
-    if (!sessionId || !coinAddress || !coinName || !coinSymbol) {
+    if (!sessionId) {
       return NextResponse.json(
-        { error: "Missing required parameters" },
+        { error: "Missing session ID" },
+        { status: 400 }
+      );
+    }
+
+    // Get session from database
+    const session = await getSession(sessionId);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if the session has metadata
+    if (!session.metadata) {
+      return NextResponse.json(
+        { error: "Session metadata not found. Generate metadata first." },
+        { status: 400 }
+      );
+    }
+
+    const metadata = session.metadata as GeneratedMetadata;
+    
+    if (!metadata.coinAddress) {
+      return NextResponse.json(
+        { error: "Coin address not found in session metadata" },
         { status: 400 }
       );
     }
@@ -94,12 +123,12 @@ export async function POST(request: Request) {
 
     // Create Zora URL with referrer
     const ZORA_REFERRER = process.env.INTEGRATOR_WALLET_ADDRESS;
-    const zoraUrl = `https://zora.co/coin/base:${coinAddress}?referrer=${ZORA_REFERRER}`;
+    const zoraUrl = `https://zora.co/coin/base:${metadata.coinAddress}?referrer=${ZORA_REFERRER}`;
 
     // Format participant names for the tweet
     let participantText = "";
-    if (participants && Object.keys(participants).length > 0) {
-      const participantPromises = Object.values(participants)
+    if (session.participants && Object.keys(session.participants).length > 0) {
+      const participantPromises = Object.values(session.participants)
         .map(async (p: any) => {
           const xUsername = await getXUsername(p.fid);
           
@@ -131,12 +160,12 @@ export async function POST(request: Request) {
     }
 
     // Create the tweet text (include URL in tweet since Twitter auto-shortens)
-    const tweetText = `${coinName} (${coinSymbol})${participantText} just launched 🚀 ${zoraUrl}`;
+    const tweetText = `${metadata.name} (${metadata.symbol})${participantText} just launched 🚀 ${zoraUrl}`;
 
     // Validate tweet length
     if (tweetText.length > 280) {
       // If too long, truncate participant text
-      const baseTweet = `${coinName} (${coinSymbol}) just launched 🚀 ${zoraUrl}`;
+      const baseTweet = `${metadata.name} (${metadata.symbol}) just launched 🚀 ${zoraUrl}`;
       if (baseTweet.length > 280) {
         return NextResponse.json(
           { error: "Tweet text too long even without participants" },
@@ -147,7 +176,7 @@ export async function POST(request: Request) {
       participantText = "";
     }
 
-    const finalTweetText = `${coinName} (${coinSymbol})${participantText} just launched 🚀 ${zoraUrl}`;
+    const finalTweetText = `${metadata.name} (${metadata.symbol})${participantText} just launched 🚀 ${zoraUrl}`;
 
     // Prepare the tweet data
     const tweetData = {

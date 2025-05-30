@@ -94,7 +94,7 @@ curl -X POST http://localhost:3000/api/generate-metadata \
 
 2. **Create Coin** (Step 2):
 ```bash
-curl -X POST http://localhost:3000/api/create-coin \
+curl -X POST http://localhost:3000/api/create-coin-smart \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "YOUR_SESSION_ID"}'
 ```

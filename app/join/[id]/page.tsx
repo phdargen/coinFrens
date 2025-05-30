@@ -278,10 +278,6 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                 },
                 body: JSON.stringify({
                   sessionId,
-                  coinAddress: coinResult.metadata?.coinAddress,
-                  coinName: coinResult.metadata?.name,
-                  coinSymbol: coinResult.metadata?.symbol,
-                  participants: updatedSession.participants,
                 }),
               });
 
@@ -307,10 +303,6 @@ export default function JoinSessionPage({ params }: { params: { id: string } }) 
                 },
                 body: JSON.stringify({
                   sessionId,
-                  coinAddress: coinResult.metadata?.coinAddress,
-                  coinName: coinResult.metadata?.name,
-                  coinSymbol: coinResult.metadata?.symbol,
-                  participants: updatedSession.participants,
                 }),
               });
 
