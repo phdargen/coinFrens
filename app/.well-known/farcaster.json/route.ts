@@ -17,6 +17,21 @@ export async function GET() {
       splashImageUrl: process.env.NEXT_PUBLIC_SPLASH_IMAGE_URL,
       splashBackgroundColor: `#${process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR}`,
       webhookUrl: `${URL}/api/webhook`,
+      tagline: "Coin with your frens",
+      subtitle: "Coin with your frens",
+      description: "CoinJam - Coin with your frens",
+      heroImageUrl: `${URL}/session.png`,
+      primaryCategory: "social",
+      tags: [
+        "social",
+        "friends",
+        "community",
+        "gaming",
+        "fun"
+      ],
+      ogTitle: "CoinJam - Coin with your frens",
+      ogDescription: "CoinJam - Coin with your frens",
+      ogImageUrl: `${URL}/session.png`,
     },
   });
 }

@@ -30,6 +30,15 @@ export async function GET(request: Request) {
     const coinName = session.metadata?.name || '';
     const coinSymbol = session.metadata?.symbol || '';
 
+    console.log(`Session ${sessionId} details:`, {
+      status,
+      creatorName,
+      participantCount,
+      maxParticipants,
+      coinName,
+      coinSymbol
+    });
+
     const baseUrl = process.env.NEXT_PUBLIC_URL;
     
     // For local development, override with localhost if baseUrl is production
@@ -45,6 +54,11 @@ export async function GET(request: Request) {
     const cleanBaseUrl = effectiveBaseUrl?.endsWith('/') ? effectiveBaseUrl.slice(0, -1) : effectiveBaseUrl;
     const imageUrl = `${cleanBaseUrl}/api/og/session?${ogImageParams.toString()}`;
     const joinPageUrl = `${cleanBaseUrl}/join/${sessionId}`;
+    const sessionPageUrl = `${cleanBaseUrl}/session/${sessionId}`;
+
+    // Determine the target URL based on status
+    const targetUrl = status === 'complete' ? sessionPageUrl : joinPageUrl;
+    console.log(`Session ${sessionId} target URL: ${targetUrl} (status: ${status})`);
 
     // Simple description
     const remainingSpots = maxParticipants - participantCount;
@@ -65,12 +79,16 @@ export async function GET(request: Request) {
         action: {
           type: "launch_frame",
           name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "CoinJam",
-          url: status === 'complete' ? `${cleanBaseUrl}/session/${sessionId}` : joinPageUrl,
+          url: targetUrl,
           splashImageUrl: process.env.NEXT_PUBLIC_SPLASH_IMAGE_URL,
           splashBackgroundColor: `#${process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR || '667eea'}`,
         },
       },
     };
+
+    // Debug logging
+    console.log(`Frame URL for session ${sessionId} (status: ${status}):`, targetUrl);
+    console.log(`Frame JSON:`, JSON.stringify(frame, null, 2));
 
     const title = status === 'complete' && coinName 
       ? `${coinName} (${coinSymbol}) - CoinJam Session`
@@ -113,7 +131,7 @@ export async function GET(request: Request) {
     return new NextResponse(html, {
       headers: {
         'Content-Type': 'text/html',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       }
     });
 
