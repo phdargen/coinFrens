@@ -7,6 +7,8 @@ import { createConfig, http } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { coinbaseWallet, injected, metaMask } from "wagmi/connectors";
 import { WagmiProvider } from "wagmi";
+import { farcasterFrame as miniAppConnector } from '@farcaster/frame-wagmi-connector'
+
 // Create wagmi config with multiple connectors
 const config = createConfig({
   chains: [base],
@@ -15,13 +17,14 @@ const config = createConfig({
   },
   pollingInterval: 60_000,
   connectors: [
+    miniAppConnector(),
     metaMask(),
     coinbaseWallet({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || 'TrueCast',
     }),
     injected({
       shimDisconnect: true,
-    }),
+    })
   ],
 });
 
