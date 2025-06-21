@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CheckCircle, ExternalLink } from "lucide-react";
 import { formatEther, parseEther } from "viem";
 
 interface CollectModalProps {
@@ -40,6 +40,9 @@ export function CollectModal({
   const [ethPrice, setEthPrice] = useState<number>(0);
   const [isLoadingPrice, setIsLoadingPrice] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
+  const [showSuccess, setShowSuccess] = useState<boolean>(false);
+  const [successTxHash, setSuccessTxHash] = useState<string>("");
+  const [successAmount, setSuccessAmount] = useState<string>("");
   
   const { address } = useAccount();
   const { context } = useMiniKit();
@@ -59,6 +62,17 @@ export function CollectModal({
     coinAddress,
     ethAmount: selectedAmount
   });
+
+  // Reset states when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setShowSuccess(false);
+      setSuccessTxHash("");
+      setSuccessAmount("");
+      setSelectedAmount("0.000111");
+      setActiveTab("buy");
+    }
+  }, [isOpen]);
 
   // Save processed tx hashes to session storage
   const saveProcessedTxs = useCallback(() => {
@@ -191,12 +205,109 @@ export function CollectModal({
     }
   };
 
+  const handleClose = () => {
+    setShowSuccess(false);
+    setSuccessTxHash("");
+    setSuccessAmount("");
+    onClose();
+  };
+
   const insufficientBalance = isInsufficientBalance();
   const hasInsufficientBalance = insufficientBalance;
   const isDisabled = !address || hasInsufficientBalance || !coinAddress || parseFloat(selectedAmount || "0") <= 0;
 
+  // Success view
+  if (showSuccess) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md bg-black text-white border-gray-800 p-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Transaction Successful</DialogTitle>
+            <DialogDescription>
+              Your {coinName} purchase was successful
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-6 pt-8 space-y-6 text-center">
+            {/* Success Icon */}
+            <div className="flex justify-center">
+              <CheckCircle className="w-16 h-16 text-green-500" />
+            </div>
+            
+            {/* Success Message */}
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-white">Transaction Successful!</h2>
+              <p className="text-gray-400">
+                You successfully purchased {successAmount} ETH worth of {coinName} ({coinSymbol})
+              </p>
+            </div>
+
+            {/* Transaction Details */}
+            <Card className="bg-gray-900 border-gray-700 p-4">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Amount</span>
+                  <span className="text-white font-semibold">{successAmount} ETH</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Token</span>
+                  <span className="text-white font-semibold">{coinName} ({coinSymbol})</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">USD Value</span>
+                  <span className="text-white font-semibold">
+                    ${(parseFloat(successAmount || "0") * ethPrice).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Transaction Hash */}
+            {successTxHash && (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-400">Transaction Hash</p>
+                <div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-lg p-3">
+                  <span className="text-xs font-mono text-gray-300 truncate">
+                    {successTxHash.slice(0, 10)}...{successTxHash.slice(-8)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(`https://basescan.org/tx/${successTxHash}`, '_blank')}
+                    className="text-blue-400 hover:text-blue-300 p-1"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <Button
+                onClick={() => window.open(`https://basescan.org/tx/${successTxHash}`, '_blank')}
+                variant="outline"
+                className="w-full bg-transparent border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
+              >
+                View on Block Explorer
+                <ExternalLink className="w-4 h-4 ml-2" />
+              </Button>
+              
+              <Button
+                onClick={handleClose}
+                className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold"
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-black text-white border-gray-800 p-0 overflow-hidden">
         <DialogHeader className="sr-only">
           <DialogTitle>Collect {coinName}</DialogTitle>
@@ -332,13 +443,17 @@ export function CollectModal({
                     const receipts = status.statusData.transactionReceipts;
                     if (receipts && receipts.length > 0 && 'transactionHash' in receipts[0]) {
                       const txHash = receipts[0].transactionHash;
+                      
+                      // Set success state instead of immediately closing
+                      setSuccessTxHash(txHash);
+                      setSuccessAmount(selectedAmount);
+                      setShowSuccess(true);
+                      
                       recordTransaction(txHash).catch(error => {
                         console.error('Failed to record transaction:', error);
                       });
                     }
                   }
-                  // Close modal on success
-                  onClose();
                 }
               }}
             >
@@ -364,7 +479,7 @@ export function CollectModal({
               onClick={() => {
                 // TODO: Implement sell logic
                 console.log(`${activeTab}ing ${selectedAmount} ETH worth of ${coinSymbol}`);
-                onClose();
+                handleClose();
               }}
             >
               {activeTab === "buy" ? "Connect Wallet to Buy" : "Sell"} {coinName} ({coinSymbol})

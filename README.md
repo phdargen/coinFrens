@@ -99,6 +99,10 @@ curl -X POST http://localhost:3000/api/create-coin-smart \
   -d '{"sessionId": "YOUR_SESSION_ID"}'
 ```
 
+curl -X POST http://localhost:3000/api/post-to-farcaster \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "YOUR_SESSION_ID"}'
+
 ## Customization
 
 To get started building your own frame, follow these steps:
