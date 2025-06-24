@@ -1,5 +1,11 @@
 import { Address, erc20Abi, PublicClient, WalletClient, encodeFunctionData, Hex } from 'viem';
-import { createCoin, createCoinCall, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
+import { 
+  createCoinCall, 
+  DeployCurrency, 
+  getCoinCreateFromLogs,
+  validateMetadataURIContent,
+  ValidMetadataURI
+} from '@zoralabs/coins-sdk';
 import { 
   CoinPlatform, 
   CoinCreationParams, 
@@ -7,6 +13,7 @@ import {
   PlatformType 
 } from '../coin-platform-types';
 import { Participant } from '../types';
+import { base } from 'viem/chains';
 
 export class ZoraPlatform implements CoinPlatform {
   async createCoin(
@@ -22,15 +29,18 @@ export class ZoraPlatform implements CoinPlatform {
     
     console.log(`Setting payout to creator: ${creatorFid}, address: ${payoutAddress}`);
     
+    // Validate the metadata URI before using it
+    await validateMetadataURIContent(metadata.zoraTokenUri as ValidMetadataURI);
+
     // Define coin parameters
     const coinParams = {
       name: metadata.name,
       symbol: metadata.symbol,
-      uri: metadata.zoraTokenUri,
+      uri: metadata.zoraTokenUri as ValidMetadataURI,
       payoutRecipient: creatorAddress,
       platformReferrer: creatorAddress,
-      description: metadata.description,
-      initialPurchaseWei: BigInt(0) // No initial purchase
+      currency: DeployCurrency.ETH,
+      chainId: base.id,
     };
 
     // Create the coin with simplified gas handling

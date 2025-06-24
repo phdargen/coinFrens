@@ -3,7 +3,7 @@ import { getSession, updateSessionStatus, updateSessionMetadata } from "@/lib/se
 import { CdpClient } from "@coinbase/cdp-sdk";
 import { createPublicClient, http, Address, erc20Abi, encodeFunctionData, Hex } from "viem";
 import { base } from "viem/chains";
-import { createCoinCall, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
+import { createCoinCall, DeployCurrency, getCoinCreateFromLogs, validateMetadataURIContent, ValidMetadataURI } from '@zoralabs/coins-sdk';
 import { getAllNotificationEnabledUsers } from "@/lib/notification";
 import { sendBatchNotifications } from '@/lib/notification-client';
 import { incrementCreatedCoins } from "@/lib/platform-stats";
@@ -112,14 +112,16 @@ export async function POST(request: Request) {
     console.log("Creating Zora coin...");
     
     const metadata = session.metadata as GeneratedMetadata;
+    await validateMetadataURIContent(metadata.zoraTokenUri as ValidMetadataURI);
+
     const coinParams = {
       name: metadata.name,
       symbol: metadata.symbol,
-      uri: metadata.zoraTokenUri || metadata.ipfsMetadataUri,
+      uri: metadata.zoraTokenUri as ValidMetadataURI,
       payoutRecipient: smartAccount.address,
       platformReferrer: smartAccount.address,
-      description: metadata.description,
-      initialPurchaseWei: BigInt(0)
+      currency: DeployCurrency.ETH,
+      chainId: base.id,
     };
 
     let coinAddress: Address | null = null;

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { path: string[] } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    // Get the path and search params
-    const path = params.path.join('/');
-    const searchParams = request.nextUrl.searchParams.toString();
+    // Extract the path from the URL pathname
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    
+    // Remove the /api/warpcast/ prefix to get the actual path
+    const path = pathname.replace('/api/warpcast/', '');
+    const searchParams = url.searchParams.toString();
     
     // Build the Warpcast API URL
     const warpcastUrl = `https://api.warpcast.com/${path}${searchParams ? `?${searchParams}` : ''}`;

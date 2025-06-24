@@ -16,7 +16,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Users, ArrowLeft, Share2, ExternalLink, Sparkles, ShieldCheck, BarChartBig, Image as ImageIcon } from "lucide-react";
 import { sdk } from '@farcaster/frame-sdk';
 
-export default function SessionPage({ params }: { params: { id: string } }) {
+export default function SessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { context } = useMiniKit();
   const openUrl = useOpenUrl();
   const viewProfile = useViewProfile();
@@ -25,15 +25,24 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-
-  const sessionId = params.id;
+  const [sessionId, setSessionId] = useState<string>("");
 
   // Add client-side mount check to prevent hydration errors
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    
+    // Await params and set sessionId
+    const getSessionId = async () => {
+      const resolvedParams = await params;
+      setSessionId(resolvedParams.id);
+    };
+    
+    getSessionId();
+  }, [params]);
 
   useEffect(() => {
+    if (!sessionId) return;
+    
     const fetchSession = async () => {
       try {
         setLoading(true);

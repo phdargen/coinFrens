@@ -8,7 +8,7 @@ import Image from "next/image";
 import { Transaction, TransactionButton, TransactionStatus, TransactionStatusAction, LifecycleStatus } from '@coinbase/onchainkit/transaction';
 import { useTokenTransaction } from '@/hooks/useTokenTransaction';
 import { useAccount } from 'wagmi';
-import { useMiniKit } from '@coinbase/onchainkit/minikit';
+import { useMiniKit, useOpenUrl } from '@coinbase/onchainkit/minikit';
 import { base } from 'viem/chains';
 import { CoinSession } from "@/lib/types";
 
@@ -46,6 +46,7 @@ export function CollectModal({
   
   const { address } = useAccount();
   const { context } = useMiniKit();
+  const openUrl = useOpenUrl();
   const networkChainId = base.id;
   
   const fid = context?.user?.fid;
@@ -273,7 +274,7 @@ export function CollectModal({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => window.open(`https://basescan.org/tx/${successTxHash}`, '_blank')}
+                    onClick={() => openUrl(`https://basescan.org/tx/${successTxHash}`)}
                     className="text-blue-400 hover:text-blue-300 p-1"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -285,7 +286,7 @@ export function CollectModal({
             {/* Action Buttons */}
             <div className="space-y-3">
               <Button
-                onClick={() => window.open(`https://basescan.org/tx/${successTxHash}`, '_blank')}
+                onClick={() => openUrl(`https://basescan.org/tx/${successTxHash}`)}
                 variant="outline"
                 className="w-full bg-transparent border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
               >
