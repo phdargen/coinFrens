@@ -86,8 +86,8 @@ export function CollectModal({
 
   // Validate transaction requirements when parameters change
   useEffect(() => {
-    if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
-      setTransactionStep("❌ Missing requirements");
+    if (!address) {
+      setTransactionStep("❌ Missing wallet address");
       setTransactionError("");
       return;
     }
@@ -100,10 +100,10 @@ export function CollectModal({
     }
 
     if (!showSuccess && activeTab === "buy") {
-      setTransactionStep("✅ Ready - Tap 'Buy' to execute");
+      setTransactionStep("✅ Ready for test transaction");
       setTransactionError("");
     }
-  }, [selectedAmount, coinAddress, address, showSuccess, activeTab, networkChainId]);
+  }, [address, showSuccess, activeTab, networkChainId]);
 
   // Reset states when modal opens/closes
   useEffect(() => {
@@ -320,49 +320,40 @@ export function CollectModal({
 
   // Create fresh transaction calls function for OnchainKit Transaction
   const getTransactionCalls = useCallback(async () => {
-    console.log("🔄 getTransactionCalls called - fetching fresh quote");
+    console.log("🔄 getTransactionCalls called - creating simple test transaction");
     console.log("🔍 Current params:", { coinAddress, address, selectedAmount, networkChainId });
     
-    if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
-      const errorMsg = `Missing requirements: coinAddress=${coinAddress}, address=${address}, amount=${selectedAmount}`;
+    if (!address) {
+      const errorMsg = `Missing wallet address: ${address}`;
       console.error("❌", errorMsg);
       setTransactionStep(`❌ ${errorMsg}`);
       throw new Error(errorMsg);
     }
 
-    setTransactionStep("🔄 Fetching fresh quote...");
+    setTransactionStep("🔄 Creating simple test transaction...");
     
     try {
-      const calls = await handleTokenTransaction(networkChainId);
-      console.log("✅ Fresh transaction calls prepared:", calls);
+      // Simple 0 ETH transfer to self for testing
+      const calls = [
+        {
+          to: address as `0x${string}`,
+          data: "0x" as `0x${string}`,
+          value: BigInt(0),
+        },
+      ];
       
-      if (!calls || !Array.isArray(calls) || calls.length === 0) {
-        const errorMsg = "No transaction calls generated - quote API may have failed";
-        console.error("❌", errorMsg);
-        setTransactionStep(`❌ ${errorMsg}`);
-        throw new Error(errorMsg);
-      }
-      
-      // Validate call structure
-      const firstCall = calls[0];
-      if (!firstCall.to || !firstCall.data) {
-        const errorMsg = `Invalid transaction call structure: to=${firstCall.to}, data=${firstCall.data}`;
-        console.error("❌", errorMsg);
-        setTransactionStep(`❌ ${errorMsg}`);
-        throw new Error(errorMsg);
-      }
-      
-      setTransactionStep("✅ Fresh quote ready");
+      console.log("✅ Simple test transaction calls prepared:", calls);
+      setTransactionStep("✅ Test transaction ready");
       return calls;
       
     } catch (error) {
       console.error('❌ Error in getTransactionCalls:', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to prepare transaction";
-      setTransactionStep(`❌ Quote failed: ${errorMessage}`);
+      setTransactionStep(`❌ Transaction prep failed: ${errorMessage}`);
       setTransactionError(errorMessage);
       throw error;
     }
-  }, [coinAddress, address, selectedAmount, networkChainId, handleTokenTransaction]);
+  }, [address]);
 
   // Debug: Monitor transaction timeout
   useEffect(() => {
@@ -393,7 +384,7 @@ export function CollectModal({
 
   const insufficientBalance = isInsufficientBalance();
   const hasInsufficientBalance = insufficientBalance;
-  const isDisabled = !address || hasInsufficientBalance || !coinAddress || parseFloat(selectedAmount || "0") <= 0;
+  const isDisabled = !address;
 
   // Success view
   if (showSuccess) {
@@ -609,46 +600,49 @@ export function CollectModal({
             ))}
           </div>
 
-          {/* Debug Information Panel - Always visible for testing */}
-          <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
-            <p className="text-blue-200 font-semibold mb-2">🔍 Debug Info (CB Wallet):</p>
-            
-            {/* Client Info */}
-            <div className="mb-2 space-y-1">
-              <p className="text-blue-200">
-                <span className="font-semibold">ClientFID:</span> {context?.client?.clientFid || "unknown"}
-              </p>
-              <p className="text-blue-200">
-                <span className="font-semibold">Added:</span> {context?.client?.added ? "true" : "false"}
-              </p>
-              <p className="text-blue-200 break-all">
-                <span className="font-semibold">Address:</span> {address || "none"}
-              </p>
-              <p className="text-blue-200">
-                <span className="font-semibold">UserFID:</span> {fid || "none"}
-              </p>
-            </div>
+                      {/* Debug Information Panel - Always visible for testing */}
+            <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
+              <p className="text-blue-200 font-semibold mb-2">🔍 Debug Info (CB Wallet):</p>
+              
+              {/* Client Info */}
+              <div className="mb-2 space-y-1">
+                <p className="text-blue-200">
+                  <span className="font-semibold">ClientFID:</span> {context?.client?.clientFid || "unknown"}
+                </p>
+                <p className="text-blue-200">
+                  <span className="font-semibold">Added:</span> {context?.client?.added ? "true" : "false"}
+                </p>
+                <p className="text-blue-200 break-all">
+                  <span className="font-semibold">Address:</span> {address || "none"}
+                </p>
+                <p className="text-blue-200">
+                  <span className="font-semibold">UserFID:</span> {fid || "none"}
+                </p>
+                <p className="text-blue-200">
+                  <span className="font-semibold">Chain:</span> {networkChainId} {networkChainId === base.id ? "(Base ✅)" : `(Expected: ${base.id} ❌)`}
+                </p>
+              </div>
 
-            {/* Current Step */}
-            {transactionStep && (
-              <p className="text-blue-200 break-words mb-2">
-                <span className="font-semibold">Current Step:</span> {transactionStep}
-              </p>
-            )}
-            
-            {/* Quick status indicators */}
-            <div className="flex flex-wrap gap-1">
-              <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
-                Wallet: {address ? 'Connected' : 'None'}
-              </span>
-              <span className={`px-1 py-0.5 rounded text-xs ${coinAddress ? 'bg-green-600' : 'bg-red-600'}`}>
-                Coin: {coinAddress ? 'Set' : 'None'}
-              </span>
-              <span className={`px-1 py-0.5 rounded text-xs ${selectedAmount && parseFloat(selectedAmount) > 0 ? 'bg-green-600' : 'bg-red-600'}`}>
-                Amount: {selectedAmount || 'None'}
-              </span>
+              {/* Current Step */}
+              {transactionStep && (
+                <p className="text-blue-200 break-words mb-2">
+                  <span className="font-semibold">Current Step:</span> {transactionStep}
+                </p>
+              )}
+              
+              {/* Quick status indicators */}
+              <div className="flex flex-wrap gap-1">
+                <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
+                  Wallet: {address ? 'Connected' : 'None'}
+                </span>
+                <span className={`px-1 py-0.5 rounded text-xs ${networkChainId === base.id ? 'bg-green-600' : 'bg-red-600'}`}>
+                  Chain: {networkChainId} {networkChainId === base.id ? '(Base)' : '(Wrong)'}
+                </span>
+                <span className={`px-1 py-0.5 rounded text-xs bg-green-600`}>
+                  Mode: Test Transaction
+                </span>
+              </div>
             </div>
-          </div>
 
           {/* Error Message Display */}
           {transactionError && (
@@ -671,8 +665,8 @@ export function CollectModal({
             </div>
           )}
 
-          {/* Action Button - Use Transaction Component for Buy */}
-          {activeTab === "buy" && coinAddress ? (
+          {/* Action Button - Use Transaction Component for Test */}
+          {activeTab === "buy" && address ? (
                           <Transaction
                           chainId={base.id}
                 calls={getTransactionCalls}
@@ -699,7 +693,7 @@ export function CollectModal({
             >
               {/* <div className="flex flex-col w-full"> */}
                 <TransactionButton 
-                  text={loading ? `Buying...` : `Buy ${coinName} (${coinSymbol})`}
+                  text={loading ? `Testing...` : `Test Transaction (0 ETH to Self)`}
                   disabled={isDisabled}
                   className="w-full font-semibold py-3 text-lg bg-green-500 hover:bg-green-600 text-black disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
                 />
@@ -724,19 +718,18 @@ export function CollectModal({
             </Transaction>
           ) : (
             <Button 
-              disabled={insufficientBalance || !coinAddress}
+              disabled={!address}
               className={`w-full font-semibold py-3 text-lg ${
-                insufficientBalance || !coinAddress
+                !address
                   ? "bg-gray-600 text-gray-400 cursor-not-allowed" 
                   : "bg-green-500 hover:bg-green-600 text-black"
               }`}
               onClick={() => {
-                // TODO: Implement sell logic
-                console.log(`${activeTab}ing ${selectedAmount} ETH worth of ${coinSymbol}`);
+                console.log(`Test transaction for ${activeTab} mode`);
                 handleClose();
               }}
             >
-              {activeTab === "buy" ? "Connect Wallet to Buy" : "Sell"} {coinName} ({coinSymbol})
+              {activeTab === "buy" ? "Connect Wallet to Test" : "Test Transaction"}
             </Button>
           )}
 
