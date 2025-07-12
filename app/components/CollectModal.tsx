@@ -43,8 +43,6 @@ export function CollectModal({
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [successTxHash, setSuccessTxHash] = useState<string>("");
   const [successAmount, setSuccessAmount] = useState<string>("");
-  const [transactionCalls, setTransactionCalls] = useState<any[]>([]);
-  const [preparingTransaction, setPreparingTransaction] = useState<boolean>(false);
   const [transactionError, setTransactionError] = useState<string>("");
   const [transactionStartTime, setTransactionStartTime] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
@@ -86,79 +84,19 @@ export function CollectModal({
     ethAmount: selectedAmount
   });
 
-  // Prepare transaction calls when amount or coinAddress changes
+  // Validate transaction requirements when parameters change
   useEffect(() => {
-    const prepareTransactionCalls = async () => {
-      if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
-        setTransactionCalls([]);
-        setTransactionStep("❌ Missing requirements");
-        return;
-      }
-
-      console.log("Preparing transaction calls for:", { coinAddress, address, selectedAmount, networkChainId });
-      setPreparingTransaction(true);
+    if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
+      setTransactionStep("❌ Missing requirements");
       setTransactionError("");
-      setTransactionStep("🔄 Preparing transaction...");
-      
-      try {
-        setTransactionStep("📡 Fetching token quote...");
-        const calls = await handleTokenTransaction(networkChainId);
-        console.log("Transaction calls prepared:", calls);
-        
-        if (!calls) {
-          setTransactionStep("❌ No calls returned from token transaction");
-          setTransactionCalls([]);
-          setTransactionError("Token transaction returned null");
-          return;
-        }
-        
-        if (!Array.isArray(calls)) {
-          setTransactionStep("❌ Invalid calls format - not an array");
-          setTransactionCalls([]);
-          setTransactionError("Invalid transaction calls format");
-          return;
-        }
-        
-        if (calls.length === 0) {
-          setTransactionStep("❌ Empty calls array returned");
-          setTransactionCalls([]);
-          setTransactionError("No transaction calls generated");
-          return;
-        }
-        
-        // Validate call structure
-        const firstCall = calls[0];
-        if (!firstCall.to || !firstCall.data) {
-          setTransactionStep("❌ Invalid call structure - missing to/data");
-          setTransactionCalls([]);
-          setTransactionError("Invalid transaction call structure");
-          return;
-        }
-        
-        setTransactionCalls(calls);
-        setTransactionError("");
-        
-        // Start monitoring transaction when calls are ready
-        console.log("🔄 Transaction ready to be initiated");
-        setTransactionStartTime(Date.now());
-        setTransactionStep("✅ Ready - Tap 'Buy' to execute");
-        
-      } catch (error) {
-        console.error('Error preparing transaction calls:', error);
-        setTransactionCalls([]);
-        const errorMessage = error instanceof Error ? error.message : "Failed to prepare transaction";
-        setTransactionError(errorMessage);
-        setTransactionStep(`❌ Prep failed: ${errorMessage}`);
-      } finally {
-        setPreparingTransaction(false);
-      }
-    };
-
-    // Only prepare calls when not in success state
-    if (!showSuccess && activeTab === "buy") {
-      prepareTransactionCalls();
+      return;
     }
-  }, [selectedAmount, coinAddress, address, networkChainId, handleTokenTransaction, showSuccess, activeTab]);
+
+    if (!showSuccess && activeTab === "buy") {
+      setTransactionStep("✅ Ready - Tap 'Buy' to execute");
+      setTransactionError("");
+    }
+  }, [selectedAmount, coinAddress, address, showSuccess, activeTab]);
 
   // Reset states when modal opens/closes
   useEffect(() => {
@@ -168,8 +106,6 @@ export function CollectModal({
       setSuccessAmount("");
       setSelectedAmount("0.000111");
       setActiveTab("buy");
-      setTransactionCalls([]);
-      setPreparingTransaction(false);
       setTransactionError("");
       setTransactionStartTime(null);
       setDebugInfo("");
@@ -375,6 +311,42 @@ export function CollectModal({
     setTransactionStartTime(null);
   }, []);
 
+  // Create fresh transaction calls function for OnchainKit Transaction
+  const getTransactionCalls = useCallback(async () => {
+    console.log("🔄 getTransactionCalls called - fetching fresh quote");
+    
+    if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
+      console.error("❌ Missing requirements for transaction calls");
+      throw new Error("Missing requirements for transaction");
+    }
+
+    setTransactionStep("🔄 Fetching fresh quote...");
+    
+    try {
+      const calls = await handleTokenTransaction(networkChainId);
+      console.log("✅ Fresh transaction calls prepared:", calls);
+      
+      if (!calls || !Array.isArray(calls) || calls.length === 0) {
+        throw new Error("No transaction calls generated");
+      }
+      
+      // Validate call structure
+      const firstCall = calls[0];
+      if (!firstCall.to || !firstCall.data) {
+        throw new Error("Invalid transaction call structure");
+      }
+      
+      setTransactionStep("✅ Fresh quote ready");
+      return calls;
+      
+    } catch (error) {
+      console.error('❌ Error in getTransactionCalls:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to prepare transaction";
+      setTransactionStep(`❌ Quote failed: ${errorMessage}`);
+      throw error;
+    }
+  }, [coinAddress, address, selectedAmount, networkChainId, handleTokenTransaction]);
+
   // Debug: Monitor transaction timeout
   useEffect(() => {
     if (transactionStartTime && !showSuccess) {
@@ -384,8 +356,7 @@ export function CollectModal({
         console.log("Current transaction state:", {
           showSuccess,
           successTxHash,
-          transactionError,
-          transactionCallsLength: transactionCalls.length
+          transactionError
         });
         
         // Set visual timeout warning
@@ -394,7 +365,7 @@ export function CollectModal({
 
       return () => clearTimeout(timeout);
     }
-  }, [transactionStartTime, showSuccess, successTxHash, transactionError, transactionCalls.length]);
+  }, [transactionStartTime, showSuccess, successTxHash, transactionError]);
 
   const handleClose = () => {
     setShowSuccess(false);
@@ -405,7 +376,7 @@ export function CollectModal({
 
   const insufficientBalance = isInsufficientBalance();
   const hasInsufficientBalance = insufficientBalance;
-  const isDisabled = !address || hasInsufficientBalance || !coinAddress || parseFloat(selectedAmount || "0") <= 0 || preparingTransaction || transactionCalls.length === 0;
+  const isDisabled = !address || hasInsufficientBalance || !coinAddress || parseFloat(selectedAmount || "0") <= 0;
 
   // Success view
   if (showSuccess) {
@@ -650,14 +621,14 @@ export function CollectModal({
             
             {/* Quick status indicators */}
             <div className="flex flex-wrap gap-1">
-              <span className={`px-1 py-0.5 rounded text-xs ${transactionCalls.length > 0 ? 'bg-green-600' : 'bg-red-600'}`}>
-                Calls: {transactionCalls.length}
-              </span>
               <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
                 Wallet: {address ? 'Connected' : 'None'}
               </span>
               <span className={`px-1 py-0.5 rounded text-xs ${coinAddress ? 'bg-green-600' : 'bg-red-600'}`}>
                 Coin: {coinAddress ? 'Set' : 'None'}
+              </span>
+              <span className={`px-1 py-0.5 rounded text-xs ${selectedAmount && parseFloat(selectedAmount) > 0 ? 'bg-green-600' : 'bg-red-600'}`}>
+                Amount: {selectedAmount || 'None'}
               </span>
             </div>
           </div>
@@ -668,28 +639,26 @@ export function CollectModal({
               <p className="text-red-200 text-sm">
                 <span className="font-semibold">Error:</span> {transactionError}
               </p>
-              {transactionCalls.length === 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Trigger re-preparation by changing a dependency
-                    setTransactionError("");
-                    setPreparingTransaction(true);
-                  }}
-                  className="mt-2 text-xs bg-red-800 border-red-600 text-red-100 hover:bg-red-700"
-                >
-                  Retry
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Clear the error to allow retry
+                  setTransactionError("");
+                  setTransactionStep("Ready to retry");
+                }}
+                className="mt-2 text-xs bg-red-800 border-red-600 text-red-100 hover:bg-red-700"
+              >
+                Retry
+              </Button>
             </div>
           )}
 
           {/* Action Button - Use Transaction Component for Buy */}
           {activeTab === "buy" && coinAddress ? (
             <Transaction
-              calls={transactionCalls}
-              // onSuccess={handleTransactionSuccess}
+              calls={getTransactionCalls}
+              //onSuccess={handleTransactionSuccess}
               onError={handleTransactionError}
               onStatus={(status) => {
                 // Update visual step based on transaction status
@@ -712,7 +681,7 @@ export function CollectModal({
             >
               {/* <div className="flex flex-col w-full"> */}
                 <TransactionButton 
-                  text={preparingTransaction ? "Preparing..." : loading ? `Buying...` : `Buy ${coinName} (${coinSymbol})`}
+                  text={loading ? `Buying...` : `Buy ${coinName} (${coinSymbol})`}
                   disabled={isDisabled}
                   className="w-full font-semibold py-3 text-lg bg-green-500 hover:bg-green-600 text-black disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
                 />
