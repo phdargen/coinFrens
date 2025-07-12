@@ -621,34 +621,46 @@ export function CollectModal({
             ))}
           </div>
 
-          {/* Debug Information Panel */}
-          {(debugInfo || transactionStep) && (
-            <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
-              <p className="text-blue-200 font-semibold mb-1">🔍 Debug Info (CB Wallet):</p>
-              {debugInfo && (
-                <p className="text-blue-200 mb-1 break-all">
-                  <span className="font-semibold">Context:</span> {debugInfo}
-                </p>
-              )}
-              {transactionStep && (
-                <p className="text-blue-200 break-words">
-                  <span className="font-semibold">Current Step:</span> {transactionStep}
-                </p>
-              )}
-              {/* Quick status indicators */}
-              <div className="mt-2 flex flex-wrap gap-1">
-                <span className={`px-1 py-0.5 rounded text-xs ${transactionCalls.length > 0 ? 'bg-green-600' : 'bg-red-600'}`}>
-                  Calls: {transactionCalls.length}
-                </span>
-                <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
-                  Wallet: {address ? 'Connected' : 'None'}
-                </span>
-                <span className={`px-1 py-0.5 rounded text-xs ${coinAddress ? 'bg-green-600' : 'bg-red-600'}`}>
-                  Coin: {coinAddress ? 'Set' : 'None'}
-                </span>
-              </div>
+          {/* Debug Information Panel - Always visible for testing */}
+          <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
+            <p className="text-blue-200 font-semibold mb-2">🔍 Debug Info (CB Wallet):</p>
+            
+            {/* Client Info */}
+            <div className="mb-2 space-y-1">
+              <p className="text-blue-200">
+                <span className="font-semibold">ClientFID:</span> {context?.client?.clientFid || "unknown"}
+              </p>
+              <p className="text-blue-200">
+                <span className="font-semibold">Added:</span> {context?.client?.added ? "true" : "false"}
+              </p>
+              <p className="text-blue-200 break-all">
+                <span className="font-semibold">Address:</span> {address || "none"}
+              </p>
+              <p className="text-blue-200">
+                <span className="font-semibold">UserFID:</span> {fid || "none"}
+              </p>
             </div>
-          )}
+
+            {/* Current Step */}
+            {transactionStep && (
+              <p className="text-blue-200 break-words mb-2">
+                <span className="font-semibold">Current Step:</span> {transactionStep}
+              </p>
+            )}
+            
+            {/* Quick status indicators */}
+            <div className="flex flex-wrap gap-1">
+              <span className={`px-1 py-0.5 rounded text-xs ${transactionCalls.length > 0 ? 'bg-green-600' : 'bg-red-600'}`}>
+                Calls: {transactionCalls.length}
+              </span>
+              <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
+                Wallet: {address ? 'Connected' : 'None'}
+              </span>
+              <span className={`px-1 py-0.5 rounded text-xs ${coinAddress ? 'bg-green-600' : 'bg-red-600'}`}>
+                Coin: {coinAddress ? 'Set' : 'None'}
+              </span>
+            </div>
+          </div>
 
           {/* Error Message Display */}
           {transactionError && (
@@ -677,7 +689,7 @@ export function CollectModal({
           {activeTab === "buy" && coinAddress ? (
             <Transaction
               calls={transactionCalls}
-              onSuccess={handleTransactionSuccess}
+              // onSuccess={handleTransactionSuccess}
               onError={handleTransactionError}
               onStatus={(status) => {
                 // Update visual step based on transaction status
