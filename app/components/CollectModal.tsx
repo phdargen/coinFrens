@@ -92,11 +92,18 @@ export function CollectModal({
       return;
     }
 
+    // Check if we're on the correct network
+    if (networkChainId !== base.id) {
+      setTransactionStep(`❌ Wrong network - Switch to Base mainnet (chainId: ${base.id})`);
+      setTransactionError(`Network not supported. Please switch to Base mainnet.`);
+      return;
+    }
+
     if (!showSuccess && activeTab === "buy") {
       setTransactionStep("✅ Ready - Tap 'Buy' to execute");
       setTransactionError("");
     }
-  }, [selectedAmount, coinAddress, address, showSuccess, activeTab]);
+  }, [selectedAmount, coinAddress, address, showSuccess, activeTab, networkChainId]);
 
   // Reset states when modal opens/closes
   useEffect(() => {
@@ -314,10 +321,13 @@ export function CollectModal({
   // Create fresh transaction calls function for OnchainKit Transaction
   const getTransactionCalls = useCallback(async () => {
     console.log("🔄 getTransactionCalls called - fetching fresh quote");
+    console.log("🔍 Current params:", { coinAddress, address, selectedAmount, networkChainId });
     
     if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
-      console.error("❌ Missing requirements for transaction calls");
-      throw new Error("Missing requirements for transaction");
+      const errorMsg = `Missing requirements: coinAddress=${coinAddress}, address=${address}, amount=${selectedAmount}`;
+      console.error("❌", errorMsg);
+      setTransactionStep(`❌ ${errorMsg}`);
+      throw new Error(errorMsg);
     }
 
     setTransactionStep("🔄 Fetching fresh quote...");
@@ -327,13 +337,19 @@ export function CollectModal({
       console.log("✅ Fresh transaction calls prepared:", calls);
       
       if (!calls || !Array.isArray(calls) || calls.length === 0) {
-        throw new Error("No transaction calls generated");
+        const errorMsg = "No transaction calls generated - quote API may have failed";
+        console.error("❌", errorMsg);
+        setTransactionStep(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
       }
       
       // Validate call structure
       const firstCall = calls[0];
       if (!firstCall.to || !firstCall.data) {
-        throw new Error("Invalid transaction call structure");
+        const errorMsg = `Invalid transaction call structure: to=${firstCall.to}, data=${firstCall.data}`;
+        console.error("❌", errorMsg);
+        setTransactionStep(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
       }
       
       setTransactionStep("✅ Fresh quote ready");
@@ -343,6 +359,7 @@ export function CollectModal({
       console.error('❌ Error in getTransactionCalls:', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to prepare transaction";
       setTransactionStep(`❌ Quote failed: ${errorMessage}`);
+      setTransactionError(errorMessage);
       throw error;
     }
   }, [coinAddress, address, selectedAmount, networkChainId, handleTokenTransaction]);
@@ -656,10 +673,11 @@ export function CollectModal({
 
           {/* Action Button - Use Transaction Component for Buy */}
           {activeTab === "buy" && coinAddress ? (
-            <Transaction
-              calls={getTransactionCalls}
-              //onSuccess={handleTransactionSuccess}
-              onError={handleTransactionError}
+                          <Transaction
+                          chainId={base.id}
+                calls={getTransactionCalls}
+                onSuccess={handleTransactionSuccess}
+                onError={handleTransactionError}
               onStatus={(status) => {
                 // Update visual step based on transaction status
                 if (status.statusName === "init") {

@@ -22,8 +22,8 @@ export function useTokenTransaction({ coinAddress, ethAmount }: UseTokenTransact
     
     // If not on base mainnet, don't fetch a real quote
     if (networkChainId !== base.id) {
-      console.log('⚠️ Not on base mainnet, skipping real quote fetch');
-      return { transaction: { to: '', data: '0x' as `0x${string}`, value: '0' } };
+      console.error('❌ Not on base mainnet, network not supported');
+      throw new Error(`Network not supported. Please switch to Base mainnet (chainId: ${base.id}). Current chainId: ${networkChainId}`);
     }
     
     try {
