@@ -39,7 +39,18 @@ export function useTokenTransaction({ coinAddress, ethAmount }: UseTokenTransact
       if (response.ok) {
         const data = await response.json();
         console.log('Token quote data:', data);
+        
+        // Additional validation for the quote response
+        if (data.error) {
+          console.error('Quote API returned error:', data.error);
+          return null;
+        }
+        
         return data;
+      } else {
+        console.error('Quote API request failed:', response.status, response.statusText);
+        const errorData = await response.text();
+        console.error('Quote API error response:', errorData);
       }
     } catch (error) {
       console.error('Error fetching token quote:', error);
@@ -53,10 +64,15 @@ export function useTokenTransaction({ coinAddress, ethAmount }: UseTokenTransact
       const quote = await fetchTokenQuote(networkChainId);
       
       if (!quote || !quote.transaction) {
-        throw new Error('Failed to get quote');
+        throw new Error('Failed to get quote - API returned invalid response');
       }
 
-      // Return the transaction data
+      // Validate transaction data
+      if (!quote.transaction.to || !quote.transaction.data) {
+        throw new Error('Invalid transaction data in quote response');
+      }
+
+      // Return the transaction data with proper validation
       return [{
         to: quote.transaction.to as `0x${string}`,
         data: quote.transaction.data as `0x${string}`,
@@ -64,7 +80,13 @@ export function useTokenTransaction({ coinAddress, ethAmount }: UseTokenTransact
       }];
     } catch (error) {
       console.error(`Error in token transaction:`, error);
-      throw error; // Rethrow to signal to Transaction component
+      
+      // Provide more specific error information
+      if (error instanceof Error) {
+        throw new Error(`Token transaction failed: ${error.message}`);
+      }
+      
+      throw new Error('Token transaction failed: Unknown error');
     }
   }, [fetchTokenQuote]);
 

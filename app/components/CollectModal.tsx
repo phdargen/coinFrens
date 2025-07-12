@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
-import { Transaction, TransactionButton, TransactionStatus, TransactionStatusAction, LifecycleStatus } from '@coinbase/onchainkit/transaction';
+import { Transaction, TransactionButton, TransactionStatus, TransactionStatusAction, LifecycleStatus, TransactionToast, TransactionToastAction, TransactionToastLabel, TransactionToastIcon, TransactionStatusLabel } from '@coinbase/onchainkit/transaction';
 import { useTokenTransaction } from '@/hooks/useTokenTransaction';
 import { useAccount } from 'wagmi';
 import { useMiniKit, useOpenUrl } from '@coinbase/onchainkit/minikit';
@@ -43,6 +43,9 @@ export function CollectModal({
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [successTxHash, setSuccessTxHash] = useState<string>("");
   const [successAmount, setSuccessAmount] = useState<string>("");
+  const [transactionCalls, setTransactionCalls] = useState<any[]>([]);
+  const [preparingTransaction, setPreparingTransaction] = useState<boolean>(false);
+  const [transactionError, setTransactionError] = useState<string>("");
   
   const { address } = useAccount();
   const { context } = useMiniKit();
@@ -64,6 +67,35 @@ export function CollectModal({
     ethAmount: selectedAmount
   });
 
+  // Prepare transaction calls when amount or coinAddress changes
+  useEffect(() => {
+    const prepareTransactionCalls = async () => {
+      if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
+        setTransactionCalls([]);
+        return;
+      }
+
+      setPreparingTransaction(true);
+      setTransactionError("");
+      try {
+        const calls = await handleTokenTransaction(networkChainId);
+        setTransactionCalls(calls || []);
+        setTransactionError("");
+      } catch (error) {
+        console.error('Error preparing transaction calls:', error);
+        setTransactionCalls([]);
+        setTransactionError(error instanceof Error ? error.message : "Failed to prepare transaction");
+      } finally {
+        setPreparingTransaction(false);
+      }
+    };
+
+    // Only prepare calls when not in success state
+    if (!showSuccess && activeTab === "buy") {
+      prepareTransactionCalls();
+    }
+  }, [selectedAmount, coinAddress, address, networkChainId, handleTokenTransaction, showSuccess, activeTab]);
+
   // Reset states when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
@@ -72,6 +104,9 @@ export function CollectModal({
       setSuccessAmount("");
       setSelectedAmount("0.000111");
       setActiveTab("buy");
+      setTransactionCalls([]);
+      setPreparingTransaction(false);
+      setTransactionError("");
     }
   }, [isOpen]);
 
@@ -215,7 +250,7 @@ export function CollectModal({
 
   const insufficientBalance = isInsufficientBalance();
   const hasInsufficientBalance = insufficientBalance;
-  const isDisabled = !address || hasInsufficientBalance || !coinAddress || parseFloat(selectedAmount || "0") <= 0;
+  const isDisabled = !address || hasInsufficientBalance || !coinAddress || parseFloat(selectedAmount || "0") <= 0 || preparingTransaction || transactionCalls.length === 0;
 
   // Success view
   if (showSuccess) {
@@ -431,43 +466,68 @@ export function CollectModal({
             ))}
           </div>
 
+          {/* Error Message Display */}
+          {transactionError && (
+            <div className="bg-red-900 border border-red-500 rounded-lg p-3">
+              <p className="text-red-200 text-sm">
+                <span className="font-semibold">Error:</span> {transactionError}
+              </p>
+              {transactionCalls.length === 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Trigger re-preparation by changing a dependency
+                    setTransactionError("");
+                    setPreparingTransaction(true);
+                  }}
+                  className="mt-2 text-xs bg-red-800 border-red-600 text-red-100 hover:bg-red-700"
+                >
+                  Retry
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Action Button - Use Transaction Component for Buy */}
           {activeTab === "buy" && coinAddress ? (
             <Transaction
-              isSponsored={false}
-              chainId={networkChainId}
-              resetAfter={0}
-              calls={() => handleTokenTransaction(networkChainId)}
-              onStatus={(status: LifecycleStatus) => {
-                if (status.statusName === "success" && address) {
-                  if (status.statusData && 'transactionReceipts' in status.statusData) {
-                    const receipts = status.statusData.transactionReceipts;
-                    if (receipts && receipts.length > 0 && 'transactionHash' in receipts[0]) {
-                      const txHash = receipts[0].transactionHash;
-                      
-                      // Set success state instead of immediately closing
-                      setSuccessTxHash(txHash);
-                      setSuccessAmount(selectedAmount);
-                      setShowSuccess(true);
-                      
-                      recordTransaction(txHash).catch(error => {
-                        console.error('Failed to record transaction:', error);
-                      });
-                    }
-                  }
+              calls={transactionCalls}
+              onSuccess={(response) => {
+                if (response.transactionReceipts && response.transactionReceipts.length > 0) {
+                  const txHash = response.transactionReceipts[0].transactionHash;
+                  
+                  // Set success state instead of immediately closing
+                  setSuccessTxHash(txHash);
+                  setSuccessAmount(selectedAmount);
+                  setShowSuccess(true);
+                  
+                  recordTransaction(txHash).catch(error => {
+                    console.error('Failed to record transaction:', error);
+                  });
                 }
               }}
+              onError={(error) => {
+                console.error("Transaction failed:", error);
+                setTransactionError(error.message || "Transaction failed");
+              }}
             >
-              <div className="flex flex-col w-full">
+              {/* <div className="flex flex-col w-full"> */}
                 <TransactionButton 
-                  text={loading ? `Buying...` : `Buy ${coinName} (${coinSymbol})`}
+                  text={preparingTransaction ? "Preparing..." : loading ? `Buying...` : `Buy ${coinName} (${coinSymbol})`}
                   disabled={isDisabled}
                   className="w-full font-semibold py-3 text-lg bg-green-500 hover:bg-green-600 text-black disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
                 />
-                <TransactionStatus>
-                  <TransactionStatusAction />
-                </TransactionStatus>
-              </div>
+              <TransactionStatus>
+                <TransactionStatusAction />
+                <TransactionStatusLabel />
+              </TransactionStatus>
+              <TransactionToast className="mb-4">
+                <TransactionToastIcon />
+                <TransactionToastLabel />
+                <TransactionToastAction />
+              </TransactionToast>
+              {/* </div> */}
             </Transaction>
           ) : (
             <Button 
