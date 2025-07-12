@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
-import { Transaction, TransactionButton, TransactionStatus, TransactionStatusAction, LifecycleStatus, TransactionToast, TransactionToastAction, TransactionToastLabel, TransactionToastIcon, TransactionStatusLabel } from '@coinbase/onchainkit/transaction';
+import { Transaction, TransactionButton, TransactionStatus, TransactionStatusAction, LifecycleStatus, TransactionToast, TransactionToastAction, TransactionToastLabel, TransactionToastIcon, TransactionStatusLabel, TransactionResponse, TransactionError } from '@coinbase/onchainkit/transaction';
 import { useTokenTransaction } from '@/hooks/useTokenTransaction';
 import { useAccount } from 'wagmi';
 import { useMiniKit, useOpenUrl } from '@coinbase/onchainkit/minikit';
@@ -46,6 +46,9 @@ export function CollectModal({
   const [transactionCalls, setTransactionCalls] = useState<any[]>([]);
   const [preparingTransaction, setPreparingTransaction] = useState<boolean>(false);
   const [transactionError, setTransactionError] = useState<string>("");
+  const [transactionStartTime, setTransactionStartTime] = useState<number | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
+  const [transactionStep, setTransactionStep] = useState<string>("");
   
   const { address } = useAccount();
   const { context } = useMiniKit();
@@ -54,6 +57,21 @@ export function CollectModal({
   
   const fid = context?.user?.fid;
   const username = context?.user?.username;
+  
+  // Debug: Log client context for debugging
+  useEffect(() => {
+    console.log("MiniKit context:", {
+      client: context?.client,
+      user: context?.user,
+      address,
+      fid,
+      username
+    });
+    
+    // Set visual debug info
+    const clientInfo = context?.client ? JSON.stringify(context.client) : "Unknown client";
+    setDebugInfo(`Client: ${clientInfo} | Address: ${address || "none"} | FID: ${fid || "none"}`);
+  }, [context, address, fid, username]);
   
   const coinName = session?.metadata?.name || "Coin";
   const coinSymbol = session?.metadata?.symbol || "COIN";
@@ -75,16 +93,29 @@ export function CollectModal({
         return;
       }
 
+      console.log("Preparing transaction calls for:", { coinAddress, address, selectedAmount, networkChainId });
       setPreparingTransaction(true);
       setTransactionError("");
+      setTransactionStep("Preparing transaction...");
       try {
         const calls = await handleTokenTransaction(networkChainId);
+        console.log("Transaction calls prepared:", calls);
         setTransactionCalls(calls || []);
         setTransactionError("");
+        
+        // Start monitoring transaction when calls are ready
+        if (calls && calls.length > 0) {
+          console.log("🔄 Transaction ready to be initiated");
+          setTransactionStartTime(Date.now());
+          setTransactionStep("✅ Ready - Tap 'Buy' to execute");
+        } else {
+          setTransactionStep("❌ No transaction calls prepared");
+        }
       } catch (error) {
         console.error('Error preparing transaction calls:', error);
         setTransactionCalls([]);
         setTransactionError(error instanceof Error ? error.message : "Failed to prepare transaction");
+        setTransactionStep("Preparation failed");
       } finally {
         setPreparingTransaction(false);
       }
@@ -107,6 +138,9 @@ export function CollectModal({
       setTransactionCalls([]);
       setPreparingTransaction(false);
       setTransactionError("");
+      setTransactionStartTime(null);
+      setDebugInfo("");
+      setTransactionStep("");
     }
   }, [isOpen]);
 
@@ -155,11 +189,11 @@ export function CollectModal({
   }, []);
 
   // Calculate USD equivalent
-  const calculateUsdAmount = () => {
+  const calculateUsdAmount = useCallback(() => {
     const amount = parseFloat(selectedAmount || "0");
     if (isNaN(amount) || ethPrice === 0) return "0.00";
     return (amount * ethPrice).toFixed(2);
-  };
+  }, [selectedAmount, ethPrice]);
 
   // Convert USD to ETH
   const convertUsdToEth = (usdAmount: number) => {
@@ -193,7 +227,7 @@ export function CollectModal({
     }
   };
 
-  const recordTransaction = async (txHash: string) => {
+  const recordTransaction = useCallback(async (txHash: string) => {
     if (!address && !fid) {
       console.error("No user identifier available for transaction recording");
       return;
@@ -239,7 +273,94 @@ export function CollectModal({
     } catch (error) {
       console.error('Error recording transaction:', error);
     }
-  };
+  }, [address, fid, saveProcessedTxs, calculateUsdAmount, coinAddress, coinName, coinSymbol, username, selectedAmount, activeTab]);
+
+  // Handle transaction success - using useCallback for better reliability
+  const handleTransactionSuccess = useCallback(async (response: TransactionResponse) => {
+    console.log("🎉 Transaction success callback triggered in", context?.client || "unknown client");
+    
+    setTransactionStep("Success callback received!");
+    
+    // Debug: Log the full response structure
+    console.log("Full response object:", JSON.stringify(response, null, 2));
+    
+    try {
+      // More robust transaction hash extraction
+      let txHash: string | undefined;
+      
+      // Try multiple ways to extract transaction hash
+      if (response.transactionReceipts && response.transactionReceipts.length > 0) {
+        txHash = response.transactionReceipts[0].transactionHash;
+        console.log("✅ Transaction hash from receipts[0]:", txHash);
+        setTransactionStep(`Hash found: ${txHash?.slice(0, 10)}...`);
+      } else if (response.transactionReceipts && response.transactionReceipts[0]) {
+        txHash = response.transactionReceipts[0].transactionHash;
+        console.log("✅ Transaction hash from single receipt:", txHash);
+        setTransactionStep(`Hash found (alt): ${txHash?.slice(0, 10)}...`);
+      } else {
+        console.error("❌ No transaction receipts found in response");
+        console.log("Response keys:", Object.keys(response));
+        setTransactionStep(`No receipts found. Keys: ${Object.keys(response).join(", ")}`);
+        
+        // Try to extract from alternative paths
+        if ((response as any).transactionHash) {
+          txHash = (response as any).transactionHash;
+          console.log("✅ Transaction hash from alternative path:", txHash);
+          setTransactionStep(`Hash from alt path: ${txHash?.slice(0, 10)}...`);
+        }
+      }
+      
+      if (!txHash) {
+        console.error("❌ No transaction hash found in response");
+        setTransactionStep("❌ No transaction hash found");
+        return;
+      }
+      
+      // Set success state
+      console.log("🚀 Setting success state with hash:", txHash);
+      setTransactionStep("✅ Setting success state...");
+      setSuccessTxHash(txHash);
+      setSuccessAmount(selectedAmount);
+      setShowSuccess(true);
+      setTransactionStartTime(null);
+      
+      // Record transaction
+      await recordTransaction(txHash);
+      
+    } catch (error) {
+      console.error('❌ Error handling transaction success:', error);
+      setTransactionStep(`❌ Error in success handler: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }, [selectedAmount, recordTransaction, context]);
+
+  // Handle transaction error
+  const handleTransactionError = useCallback((error: TransactionError) => {
+    console.error("❌ Transaction failed:", error);
+    setTransactionError(error.message || "Transaction failed");
+    setTransactionStep(`❌ Transaction failed: ${error.message || "Unknown error"}`);
+    setTransactionStartTime(null);
+  }, []);
+
+  // Debug: Monitor transaction timeout
+  useEffect(() => {
+    if (transactionStartTime && !showSuccess) {
+      const timeout = setTimeout(() => {
+        const elapsed = Date.now() - transactionStartTime;
+        console.log(`⏰ Transaction has been pending for ${elapsed}ms without success callback`);
+        console.log("Current transaction state:", {
+          showSuccess,
+          successTxHash,
+          transactionError,
+          transactionCallsLength: transactionCalls.length
+        });
+        
+        // Set visual timeout warning
+        setTransactionStep(`⏰ Pending ${Math.round(elapsed/1000)}s - No success callback yet. CB Wallet may have different callback behavior.`);
+      }, 10000); // Check after 10 seconds
+
+      return () => clearTimeout(timeout);
+    }
+  }, [transactionStartTime, showSuccess, successTxHash, transactionError, transactionCalls.length]);
 
   const handleClose = () => {
     setShowSuccess(false);
@@ -466,6 +587,23 @@ export function CollectModal({
             ))}
           </div>
 
+          {/* Debug Information Panel */}
+          {(debugInfo || transactionStep) && (
+            <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
+              <p className="text-blue-200 font-semibold mb-1">Debug Info (for CB Wallet testing):</p>
+              {debugInfo && (
+                <p className="text-blue-200 mb-1 break-all">
+                  <span className="font-semibold">Context:</span> {debugInfo}
+                </p>
+              )}
+              {transactionStep && (
+                <p className="text-blue-200 break-words">
+                  <span className="font-semibold">Step:</span> {transactionStep}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Error Message Display */}
           {transactionError && (
             <div className="bg-red-900 border border-red-500 rounded-lg p-3">
@@ -493,23 +631,25 @@ export function CollectModal({
           {activeTab === "buy" && coinAddress ? (
             <Transaction
               calls={transactionCalls}
-              onSuccess={(response) => {
-                if (response.transactionReceipts && response.transactionReceipts.length > 0) {
-                  const txHash = response.transactionReceipts[0].transactionHash;
-                  
-                  // Set success state instead of immediately closing
-                  setSuccessTxHash(txHash);
-                  setSuccessAmount(selectedAmount);
-                  setShowSuccess(true);
-                  
-                  recordTransaction(txHash).catch(error => {
-                    console.error('Failed to record transaction:', error);
-                  });
+              onSuccess={handleTransactionSuccess}
+              onError={handleTransactionError}
+              onStatus={(status) => {
+                // Update visual step based on transaction status
+                if (status.statusName === "init") {
+                  setTransactionStep("🔄 Transaction initiated...");
+                } else if (status.statusName === "buildingTransaction") {
+                  setTransactionStep("🔧 Building transaction...");
+                } else if (status.statusName === "transactionPending") {
+                  setTransactionStep("⏳ Transaction pending on blockchain...");
+                } else if (status.statusName === "transactionLegacyExecuted") {
+                  setTransactionStep("⚡ Transaction executed (legacy)...");
+                } else if (status.statusName === "success") {
+                  setTransactionStep("✅ Transaction successful!");
+                } else if (status.statusName === "error") {
+                  setTransactionStep("❌ Transaction error occurred");
+                } else {
+                  setTransactionStep(`📊 Status: ${status.statusName}`);
                 }
-              }}
-              onError={(error) => {
-                console.error("Transaction failed:", error);
-                setTransactionError(error.message || "Transaction failed");
               }}
             >
               {/* <div className="flex flex-col w-full"> */}
@@ -518,6 +658,14 @@ export function CollectModal({
                   disabled={isDisabled}
                   className="w-full font-semibold py-3 text-lg bg-green-500 hover:bg-green-600 text-black disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
                 />
+                {/* Visual Transaction Step Indicator */}
+                {transactionStep && !showSuccess && (
+                  <div className="mt-2 text-center">
+                    <p className="text-xs text-gray-400">
+                      {transactionStep}
+                    </p>
+                  </div>
+                )}
               <TransactionStatus>
                 <TransactionStatusAction />
                 <TransactionStatusLabel />
