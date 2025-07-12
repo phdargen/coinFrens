@@ -69,8 +69,9 @@ export function CollectModal({
     });
     
     // Set visual debug info
-    const clientInfo = context?.client ? JSON.stringify(context.client) : "Unknown client";
-    setDebugInfo(`Client: ${clientInfo} | Address: ${address || "none"} | FID: ${fid || "none"}`);
+    const clientFid = context?.client?.clientFid;
+    const clientAdded = context?.client?.added;
+    setDebugInfo(`ClientFID: ${clientFid || "unknown"} | Added: ${clientAdded || false} | Address: ${address || "none"} | FID: ${fid || "none"}`);
   }, [context, address, fid, username]);
   
   const coinName = session?.metadata?.name || "Coin";
@@ -90,32 +91,64 @@ export function CollectModal({
     const prepareTransactionCalls = async () => {
       if (!coinAddress || !address || parseFloat(selectedAmount || "0") <= 0) {
         setTransactionCalls([]);
+        setTransactionStep("❌ Missing requirements");
         return;
       }
 
       console.log("Preparing transaction calls for:", { coinAddress, address, selectedAmount, networkChainId });
       setPreparingTransaction(true);
       setTransactionError("");
-      setTransactionStep("Preparing transaction...");
+      setTransactionStep("🔄 Preparing transaction...");
+      
       try {
+        setTransactionStep("📡 Fetching token quote...");
         const calls = await handleTokenTransaction(networkChainId);
         console.log("Transaction calls prepared:", calls);
-        setTransactionCalls(calls || []);
+        
+        if (!calls) {
+          setTransactionStep("❌ No calls returned from token transaction");
+          setTransactionCalls([]);
+          setTransactionError("Token transaction returned null");
+          return;
+        }
+        
+        if (!Array.isArray(calls)) {
+          setTransactionStep("❌ Invalid calls format - not an array");
+          setTransactionCalls([]);
+          setTransactionError("Invalid transaction calls format");
+          return;
+        }
+        
+        if (calls.length === 0) {
+          setTransactionStep("❌ Empty calls array returned");
+          setTransactionCalls([]);
+          setTransactionError("No transaction calls generated");
+          return;
+        }
+        
+        // Validate call structure
+        const firstCall = calls[0];
+        if (!firstCall.to || !firstCall.data) {
+          setTransactionStep("❌ Invalid call structure - missing to/data");
+          setTransactionCalls([]);
+          setTransactionError("Invalid transaction call structure");
+          return;
+        }
+        
+        setTransactionCalls(calls);
         setTransactionError("");
         
         // Start monitoring transaction when calls are ready
-        if (calls && calls.length > 0) {
-          console.log("🔄 Transaction ready to be initiated");
-          setTransactionStartTime(Date.now());
-          setTransactionStep("✅ Ready - Tap 'Buy' to execute");
-        } else {
-          setTransactionStep("❌ No transaction calls prepared");
-        }
+        console.log("🔄 Transaction ready to be initiated");
+        setTransactionStartTime(Date.now());
+        setTransactionStep("✅ Ready - Tap 'Buy' to execute");
+        
       } catch (error) {
         console.error('Error preparing transaction calls:', error);
         setTransactionCalls([]);
-        setTransactionError(error instanceof Error ? error.message : "Failed to prepare transaction");
-        setTransactionStep("Preparation failed");
+        const errorMessage = error instanceof Error ? error.message : "Failed to prepare transaction";
+        setTransactionError(errorMessage);
+        setTransactionStep(`❌ Prep failed: ${errorMessage}`);
       } finally {
         setPreparingTransaction(false);
       }
@@ -277,7 +310,8 @@ export function CollectModal({
 
   // Handle transaction success - using useCallback for better reliability
   const handleTransactionSuccess = useCallback(async (response: TransactionResponse) => {
-    console.log("🎉 Transaction success callback triggered in", context?.client || "unknown client");
+    const clientFid = context?.client?.clientFid;
+    console.log("🎉 Transaction success callback triggered in client FID:", clientFid || "unknown");
     
     setTransactionStep("Success callback received!");
     
@@ -590,7 +624,7 @@ export function CollectModal({
           {/* Debug Information Panel */}
           {(debugInfo || transactionStep) && (
             <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
-              <p className="text-blue-200 font-semibold mb-1">Debug Info (for CB Wallet testing):</p>
+              <p className="text-blue-200 font-semibold mb-1">🔍 Debug Info (CB Wallet):</p>
               {debugInfo && (
                 <p className="text-blue-200 mb-1 break-all">
                   <span className="font-semibold">Context:</span> {debugInfo}
@@ -598,9 +632,21 @@ export function CollectModal({
               )}
               {transactionStep && (
                 <p className="text-blue-200 break-words">
-                  <span className="font-semibold">Step:</span> {transactionStep}
+                  <span className="font-semibold">Current Step:</span> {transactionStep}
                 </p>
               )}
+              {/* Quick status indicators */}
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className={`px-1 py-0.5 rounded text-xs ${transactionCalls.length > 0 ? 'bg-green-600' : 'bg-red-600'}`}>
+                  Calls: {transactionCalls.length}
+                </span>
+                <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
+                  Wallet: {address ? 'Connected' : 'None'}
+                </span>
+                <span className={`px-1 py-0.5 rounded text-xs ${coinAddress ? 'bg-green-600' : 'bg-red-600'}`}>
+                  Coin: {coinAddress ? 'Set' : 'None'}
+                </span>
+              </div>
             </div>
           )}
 
