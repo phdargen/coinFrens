@@ -9,7 +9,7 @@ import { useViewProfile, useOpenUrl } from '@coinbase/onchainkit/minikit';
 import { useBalance } from 'wagmi';
 import { useAccount } from 'wagmi';
 import { CollectModal } from './CollectModal';
-import { sdk } from '@farcaster/frame-sdk';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 // Referrer address for Zora links
 const ZORA_REFERRER = process.env.INTEGRATOR_WALLET_ADDRESS;

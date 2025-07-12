@@ -1,4 +1,4 @@
-import type { FrameNotificationDetails } from "@farcaster/frame-sdk";
+import type { FrameNotificationDetails } from "@farcaster/frame-core";
 import { redis } from "./redis";
 
 const notificationServiceKey =

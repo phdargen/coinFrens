@@ -7,7 +7,7 @@ import { createConfig, http } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { coinbaseWallet, injected, metaMask } from "wagmi/connectors";
 import { WagmiProvider } from "wagmi";
-import { farcasterFrame as miniAppConnector } from '@farcaster/frame-wagmi-connector'
+import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-connector'
 
 // Create wagmi config with multiple connectors
 const config = createConfig({
