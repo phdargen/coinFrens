@@ -39,7 +39,6 @@ export function CollectModal({
   const [selectedAmount, setSelectedAmount] = useState<string>("0.000111");
   const [ethPrice, setEthPrice] = useState<number>(0);
   const [isLoadingPrice, setIsLoadingPrice] = useState<boolean>(true);
-  const [loading, setLoading] = useState<boolean>(false);
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [successTxHash, setSuccessTxHash] = useState<string>("");
   const [successAmount, setSuccessAmount] = useState<string>("");
@@ -445,8 +444,8 @@ export function CollectModal({
           {/* Action Button - Use TransactionButton with stable Transaction */}
           {activeTab === "buy" && address ? (
             <TransactionButton 
-              text={loading ? `Testing...` : `Test Transaction (0 ETH to Self)`}
-              disabled={isDisabled}
+              text={transactionState.isActive ? `Testing...` : `Test Transaction (0 ETH to Self)`}
+              disabled={isDisabled || transactionState.isActive}
               className="w-full font-semibold py-3 text-lg bg-green-500 hover:bg-green-600 text-black disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
           ) : (
