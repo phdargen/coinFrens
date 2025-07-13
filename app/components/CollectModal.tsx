@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
-import { Transaction, TransactionButton, TransactionStatus, TransactionStatusAction, LifecycleStatus, TransactionToast, TransactionToastAction, TransactionToastLabel, TransactionToastIcon, TransactionStatusLabel, TransactionResponse, TransactionError } from '@coinbase/onchainkit/transaction';
-import { useTokenTransaction } from '@/hooks/useTokenTransaction';
+import { TransactionButton } from '@coinbase/onchainkit/transaction';
 import { useAccount } from 'wagmi';
 import { useMiniKit, useOpenUrl } from '@coinbase/onchainkit/minikit';
 import { base } from 'viem/chains';
 import { CoinSession } from "@/lib/types";
+import { useTransactionContext } from './AppWrapper';
 
 import {
   Dialog,
@@ -43,14 +43,12 @@ export function CollectModal({
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [successTxHash, setSuccessTxHash] = useState<string>("");
   const [successAmount, setSuccessAmount] = useState<string>("");
-  const [transactionError, setTransactionError] = useState<string>("");
-  const [transactionStartTime, setTransactionStartTime] = useState<number | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
-  const [transactionStep, setTransactionStep] = useState<string>("");
   
   const { address } = useAccount();
   const { context } = useMiniKit();
   const openUrl = useOpenUrl();
+  const { transactionState, clearTransactionState } = useTransactionContext();
   const networkChainId = base.id;
   
   const fid = context?.user?.fid;
@@ -76,35 +74,6 @@ export function CollectModal({
   const coinSymbol = session?.metadata?.symbol || "COIN";
   const coinAddress = session?.metadata?.coinAddress;
 
-  // Track processed transactions to prevent duplicates
-  const processedTxHashes = useRef<Set<string>>(new Set());
-
-  const { handleTokenTransaction } = useTokenTransaction({
-    coinAddress,
-    ethAmount: selectedAmount
-  });
-
-  // Validate transaction requirements when parameters change
-  useEffect(() => {
-    if (!address) {
-      setTransactionStep("❌ Missing wallet address");
-      setTransactionError("");
-      return;
-    }
-
-    // Check if we're on the correct network
-    if (networkChainId !== base.id) {
-      setTransactionStep(`❌ Wrong network - Switch to Base mainnet (chainId: ${base.id})`);
-      setTransactionError(`Network not supported. Please switch to Base mainnet.`);
-      return;
-    }
-
-    if (!showSuccess && activeTab === "buy") {
-      setTransactionStep("✅ Ready for test transaction");
-      setTransactionError("");
-    }
-  }, [address, showSuccess, activeTab, networkChainId]);
-
   // Reset states when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
@@ -113,37 +82,19 @@ export function CollectModal({
       setSuccessAmount("");
       setSelectedAmount("0.000111");
       setActiveTab("buy");
-      setTransactionError("");
-      setTransactionStartTime(null);
       setDebugInfo("");
-      setTransactionStep("");
+      clearTransactionState();
     }
-  }, [isOpen]);
+  }, [isOpen, clearTransactionState]);
 
-  // Save processed tx hashes to session storage
-  const saveProcessedTxs = useCallback(() => {
-    try {
-      const txArray = Array.from(processedTxHashes.current);
-      sessionStorage.setItem('processedCoinTransactionTxs', JSON.stringify(txArray));
-    } catch (error) {
-      console.error('Error saving processed transactions:', error);
-    }
-  }, []);
-
-  // Load saved transactions from session storage on mount
+  // Monitor transaction state changes for success
   useEffect(() => {
-    try {
-      const savedTxs = sessionStorage.getItem('processedCoinTransactionTxs');
-      if (savedTxs) {
-        const txArray = JSON.parse(savedTxs);
-        if (Array.isArray(txArray)) {
-          processedTxHashes.current = new Set(txArray);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading saved transactions:', error);
+    if (transactionState.txHash && !showSuccess) {
+      setShowSuccess(true);
+      setSuccessTxHash(transactionState.txHash);
+      setSuccessAmount(selectedAmount);
     }
-  }, []);
+  }, [transactionState.txHash, showSuccess, selectedAmount]);
 
   useEffect(() => {
     const fetchEthPrice = async () => {
@@ -203,182 +154,11 @@ export function CollectModal({
     }
   };
 
-  const recordTransaction = useCallback(async (txHash: string) => {
-    if (!address && !fid) {
-      console.error("No user identifier available for transaction recording");
-      return;
-    }
-
-    // Skip if this transaction has already been processed
-    if (processedTxHashes.current.has(txHash)) {
-      console.log(`Transaction ${txHash} already recorded, skipping`);
-      return;
-    }
-
-    // Add to processed set immediately to prevent duplicate processing
-    processedTxHashes.current.add(txHash);
-    saveProcessedTxs();
-
-    try {
-      const usdAmount = calculateUsdAmount();
-      
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          txHash,
-          coinAddress,
-          coinName,
-          coinSymbol,
-          fid: fid?.toString(),
-          username,
-          address,
-          ethAmount: selectedAmount,
-          usdAmount,
-          action: activeTab
-        }),
-      });
-      
-      if (!response.ok) {
-        console.error('Failed to record transaction');
-      } else {
-        console.log(`Transaction recorded successfully: ${txHash} for ${coinSymbol}`);
-      }
-    } catch (error) {
-      console.error('Error recording transaction:', error);
-    }
-  }, [address, fid, saveProcessedTxs, calculateUsdAmount, coinAddress, coinName, coinSymbol, username, selectedAmount, activeTab]);
-
-  // Handle transaction success - using useCallback for better reliability
-  const handleTransactionSuccess = useCallback(async (response: TransactionResponse) => {
-    const clientFid = context?.client?.clientFid;
-    console.log("🎉 Transaction success callback triggered in client FID:", clientFid || "unknown");
-    
-    setTransactionStep("Success callback received!");
-    
-    // Debug: Log the full response structure
-    console.log("Full response object:", JSON.stringify(response, null, 2));
-    
-    try {
-      // More robust transaction hash extraction
-      let txHash: string | undefined;
-      
-      // Try multiple ways to extract transaction hash
-      if (response.transactionReceipts && response.transactionReceipts.length > 0) {
-        txHash = response.transactionReceipts[0].transactionHash;
-        console.log("✅ Transaction hash from receipts[0]:", txHash);
-        setTransactionStep(`Hash found: ${txHash?.slice(0, 10)}...`);
-      } else if (response.transactionReceipts && response.transactionReceipts[0]) {
-        txHash = response.transactionReceipts[0].transactionHash;
-        console.log("✅ Transaction hash from single receipt:", txHash);
-        setTransactionStep(`Hash found (alt): ${txHash?.slice(0, 10)}...`);
-      } else {
-        console.error("❌ No transaction receipts found in response");
-        console.log("Response keys:", Object.keys(response));
-        setTransactionStep(`No receipts found. Keys: ${Object.keys(response).join(", ")}`);
-        
-        // Try to extract from alternative paths
-        if ((response as any).transactionHash) {
-          txHash = (response as any).transactionHash;
-          console.log("✅ Transaction hash from alternative path:", txHash);
-          setTransactionStep(`Hash from alt path: ${txHash?.slice(0, 10)}...`);
-        }
-      }
-      
-      if (!txHash) {
-        console.error("❌ No transaction hash found in response");
-        setTransactionStep("❌ No transaction hash found");
-        return;
-      }
-      
-      // Set success state
-      console.log("🚀 Setting success state with hash:", txHash);
-      setTransactionStep("✅ Setting success state...");
-      setSuccessTxHash(txHash);
-      setSuccessAmount(selectedAmount);
-      setShowSuccess(true);
-      setTransactionStartTime(null);
-      
-      // Record transaction
-      await recordTransaction(txHash);
-      
-    } catch (error) {
-      console.error('❌ Error handling transaction success:', error);
-      setTransactionStep(`❌ Error in success handler: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
-  }, [selectedAmount, recordTransaction, context]);
-
-  // Handle transaction error
-  const handleTransactionError = useCallback((error: TransactionError) => {
-    console.error("❌ Transaction failed:", error);
-    setTransactionError(error.message || "Transaction failed");
-    setTransactionStep(`❌ Transaction failed: ${error.message || "Unknown error"}`);
-    setTransactionStartTime(null);
-  }, []);
-
-  // Create fresh transaction calls function for OnchainKit Transaction
-  const getTransactionCalls = useCallback(async () => {
-    console.log("🔄 getTransactionCalls called - creating simple test transaction");
-    console.log("🔍 Current params:", { coinAddress, address, selectedAmount, networkChainId });
-    
-    if (!address) {
-      const errorMsg = `Missing wallet address: ${address}`;
-      console.error("❌", errorMsg);
-      setTransactionStep(`❌ ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-
-    setTransactionStep("🔄 Creating simple test transaction...");
-    
-    try {
-      // Simple 0 ETH transfer to self for testing
-      const calls = [
-        {
-          to: address as `0x${string}`,
-          data: "0x" as `0x${string}`,
-          value: BigInt(0),
-        },
-      ];
-      
-      console.log("✅ Simple test transaction calls prepared:", calls);
-      setTransactionStep("✅ Test transaction ready");
-      return calls;
-      
-    } catch (error) {
-      console.error('❌ Error in getTransactionCalls:', error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to prepare transaction";
-      setTransactionStep(`❌ Transaction prep failed: ${errorMessage}`);
-      setTransactionError(errorMessage);
-      throw error;
-    }
-  }, [address]);
-
-  // Debug: Monitor transaction timeout
-  useEffect(() => {
-    if (transactionStartTime && !showSuccess) {
-      const timeout = setTimeout(() => {
-        const elapsed = Date.now() - transactionStartTime;
-        console.log(`⏰ Transaction has been pending for ${elapsed}ms without success callback`);
-        console.log("Current transaction state:", {
-          showSuccess,
-          successTxHash,
-          transactionError
-        });
-        
-        // Set visual timeout warning
-        setTransactionStep(`⏰ Pending ${Math.round(elapsed/1000)}s - No success callback yet. CB Wallet may have different callback behavior.`);
-      }, 10000); // Check after 10 seconds
-
-      return () => clearTimeout(timeout);
-    }
-  }, [transactionStartTime, showSuccess, successTxHash, transactionError]);
-
   const handleClose = () => {
     setShowSuccess(false);
     setSuccessTxHash("");
     setSuccessAmount("");
+    clearTransactionState();
     onClose();
   };
 
@@ -394,7 +174,7 @@ export function CollectModal({
           <DialogHeader className="sr-only">
             <DialogTitle>Transaction Successful</DialogTitle>
             <DialogDescription>
-              Your {coinName} purchase was successful
+              Your test transaction was successful
             </DialogDescription>
           </DialogHeader>
           
@@ -408,7 +188,7 @@ export function CollectModal({
             <div className="space-y-2">
               <h2 className="text-2xl font-bold text-white">Transaction Successful!</h2>
               <p className="text-gray-400">
-                You successfully purchased {successAmount} ETH worth of {coinName} ({coinSymbol})
+                Your test transaction was completed successfully
               </p>
             </div>
 
@@ -417,17 +197,15 @@ export function CollectModal({
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Amount</span>
-                  <span className="text-white font-semibold">{successAmount} ETH</span>
+                  <span className="text-white font-semibold">0 ETH</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Token</span>
-                  <span className="text-white font-semibold">{coinName} ({coinSymbol})</span>
+                  <span className="text-gray-400">Type</span>
+                  <span className="text-white font-semibold">Test Transaction</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">USD Value</span>
-                  <span className="text-white font-semibold">
-                    ${(parseFloat(successAmount || "0") * ethPrice).toFixed(2)}
-                  </span>
+                  <span className="text-gray-400">Status</span>
+                  <span className="text-green-400 font-semibold">Success</span>
                 </div>
               </div>
             </Card>
@@ -480,9 +258,9 @@ export function CollectModal({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-black text-white border-gray-800 p-0 overflow-hidden">
         <DialogHeader className="sr-only">
-          <DialogTitle>Collect {coinName}</DialogTitle>
+          <DialogTitle>Test Transaction</DialogTitle>
           <DialogDescription>
-            Buy or sell {coinName} tokens using ETH
+            Test the transaction functionality
           </DialogDescription>
         </DialogHeader>
         
@@ -500,7 +278,7 @@ export function CollectModal({
                     : "text-gray-400 hover:text-white"
                 } rounded-full px-6`}
               >
-                Buy
+                Test
               </Button>
               <Button
                 variant={activeTab === "sell" ? "default" : "ghost"}
@@ -513,7 +291,7 @@ export function CollectModal({
                     : "text-gray-400 hover:text-white"
                 } rounded-full px-6 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                Sell
+                Disabled
               </Button>
             </div>
             <div className="text-right">
@@ -600,63 +378,62 @@ export function CollectModal({
             ))}
           </div>
 
-                      {/* Debug Information Panel - Always visible for testing */}
-            <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
-              <p className="text-blue-200 font-semibold mb-2">🔍 Debug Info (CB Wallet):</p>
-              
-              {/* Client Info */}
-              <div className="mb-2 space-y-1">
-                <p className="text-blue-200">
-                  <span className="font-semibold">ClientFID:</span> {context?.client?.clientFid || "unknown"}
-                </p>
-                <p className="text-blue-200">
-                  <span className="font-semibold">Added:</span> {context?.client?.added ? "true" : "false"}
-                </p>
-                <p className="text-blue-200 break-all">
-                  <span className="font-semibold">Address:</span> {address || "none"}
-                </p>
-                <p className="text-blue-200">
-                  <span className="font-semibold">UserFID:</span> {fid || "none"}
-                </p>
-                <p className="text-blue-200">
-                  <span className="font-semibold">Chain:</span> {networkChainId} {networkChainId === base.id ? "(Base ✅)" : `(Expected: ${base.id} ❌)`}
-                </p>
-              </div>
-
-              {/* Current Step */}
-              {transactionStep && (
-                <p className="text-blue-200 break-words mb-2">
-                  <span className="font-semibold">Current Step:</span> {transactionStep}
-                </p>
-              )}
-              
-              {/* Quick status indicators */}
-              <div className="flex flex-wrap gap-1">
-                <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
-                  Wallet: {address ? 'Connected' : 'None'}
-                </span>
-                <span className={`px-1 py-0.5 rounded text-xs ${networkChainId === base.id ? 'bg-green-600' : 'bg-red-600'}`}>
-                  Chain: {networkChainId} {networkChainId === base.id ? '(Base)' : '(Wrong)'}
-                </span>
-                <span className={`px-1 py-0.5 rounded text-xs bg-green-600`}>
-                  Mode: Test Transaction
-                </span>
-              </div>
+          {/* Debug Information Panel - Always visible for testing */}
+          <div className="bg-blue-900 border border-blue-500 rounded-lg p-3 text-xs">
+            <p className="text-blue-200 font-semibold mb-2">🔍 Debug Info (CB Wallet):</p>
+            
+            {/* Client Info */}
+            <div className="mb-2 space-y-1">
+              <p className="text-blue-200">
+                <span className="font-semibold">ClientFID:</span> {context?.client?.clientFid || "unknown"}
+              </p>
+              <p className="text-blue-200">
+                <span className="font-semibold">Added:</span> {context?.client?.added ? "true" : "false"}
+              </p>
+              <p className="text-blue-200 break-all">
+                <span className="font-semibold">Address:</span> {address || "none"}
+              </p>
+              <p className="text-blue-200">
+                <span className="font-semibold">UserFID:</span> {fid || "none"}
+              </p>
+              <p className="text-blue-200">
+                <span className="font-semibold">Chain:</span> {networkChainId} {networkChainId === base.id ? "(Base ✅)" : `(Expected: ${base.id} ❌)`}
+              </p>
             </div>
 
+            {/* Current Step */}
+            {transactionState.step && (
+              <p className="text-blue-200 break-words mb-2">
+                <span className="font-semibold">Current Step:</span> {transactionState.step}
+              </p>
+            )}
+            
+            {/* Quick status indicators */}
+            <div className="flex flex-wrap gap-1">
+              <span className={`px-1 py-0.5 rounded text-xs ${address ? 'bg-green-600' : 'bg-red-600'}`}>
+                Wallet: {address ? 'Connected' : 'None'}
+              </span>
+              <span className={`px-1 py-0.5 rounded text-xs ${networkChainId === base.id ? 'bg-green-600' : 'bg-red-600'}`}>
+                Chain: {networkChainId} {networkChainId === base.id ? '(Base)' : '(Wrong)'}
+              </span>
+              <span className={`px-1 py-0.5 rounded text-xs bg-green-600`}>
+                Mode: Test Transaction
+              </span>
+            </div>
+          </div>
+
           {/* Error Message Display */}
-          {transactionError && (
+          {transactionState.error && (
             <div className="bg-red-900 border border-red-500 rounded-lg p-3">
               <p className="text-red-200 text-sm">
-                <span className="font-semibold">Error:</span> {transactionError}
+                <span className="font-semibold">Error:</span> {transactionState.error}
               </p>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   // Clear the error to allow retry
-                  setTransactionError("");
-                  setTransactionStep("Ready to retry");
+                  clearTransactionState();
                 }}
                 className="mt-2 text-xs bg-red-800 border-red-600 text-red-100 hover:bg-red-700"
               >
@@ -665,57 +442,13 @@ export function CollectModal({
             </div>
           )}
 
-          {/* Action Button - Use Transaction Component for Test */}
+          {/* Action Button - Use TransactionButton with stable Transaction */}
           {activeTab === "buy" && address ? (
-                          <Transaction
-                          chainId={base.id}
-                calls={getTransactionCalls}
-                onSuccess={handleTransactionSuccess}
-                onError={handleTransactionError}
-              onStatus={(status) => {
-                // Update visual step based on transaction status
-                if (status.statusName === "init") {
-                  setTransactionStep("🔄 Transaction initiated...");
-                } else if (status.statusName === "buildingTransaction") {
-                  setTransactionStep("🔧 Building transaction...");
-                } else if (status.statusName === "transactionPending") {
-                  setTransactionStep("⏳ Transaction pending on blockchain...");
-                } else if (status.statusName === "transactionLegacyExecuted") {
-                  setTransactionStep("⚡ Transaction executed (legacy)...");
-                } else if (status.statusName === "success") {
-                  setTransactionStep("✅ Transaction successful!");
-                } else if (status.statusName === "error") {
-                  setTransactionStep("❌ Transaction error occurred");
-                } else {
-                  setTransactionStep(`📊 Status: ${status.statusName}`);
-                }
-              }}
-            >
-              {/* <div className="flex flex-col w-full"> */}
-                <TransactionButton 
-                  text={loading ? `Testing...` : `Test Transaction (0 ETH to Self)`}
-                  disabled={isDisabled}
-                  className="w-full font-semibold py-3 text-lg bg-green-500 hover:bg-green-600 text-black disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
-                />
-                {/* Visual Transaction Step Indicator */}
-                {transactionStep && !showSuccess && (
-                  <div className="mt-2 text-center">
-                    <p className="text-xs text-gray-400">
-                      {transactionStep}
-                    </p>
-                  </div>
-                )}
-              <TransactionStatus>
-                <TransactionStatusAction />
-                <TransactionStatusLabel />
-              </TransactionStatus>
-              <TransactionToast className="mb-4">
-                <TransactionToastIcon />
-                <TransactionToastLabel />
-                <TransactionToastAction />
-              </TransactionToast>
-              {/* </div> */}
-            </Transaction>
+            <TransactionButton 
+              text={loading ? `Testing...` : `Test Transaction (0 ETH to Self)`}
+              disabled={isDisabled}
+              className="w-full font-semibold py-3 text-lg bg-green-500 hover:bg-green-600 text-black disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+            />
           ) : (
             <Button 
               disabled={!address}
@@ -733,6 +466,14 @@ export function CollectModal({
             </Button>
           )}
 
+          {/* Visual Transaction Step Indicator */}
+          {transactionState.step && !showSuccess && (
+            <div className="mt-2 text-center">
+              <p className="text-xs text-gray-400">
+                {transactionState.step}
+              </p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
