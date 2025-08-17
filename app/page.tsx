@@ -5,15 +5,22 @@ import dynamic from "next/dynamic";
 import { Header } from "./components/Header";
 import { LoadingComponent } from "./components/UIComponents";
 import { JoinPage } from "./components/JoinPage";
+import { BottomNavigation } from "./components/BottomNavigation";
 
-// Dynamic import for CreateSession component
+// Dynamic imports for tab components
 const CreateSession = dynamic(() => import('./components/CreateSession').then(mod => ({ default: mod.CreateSession })), {
+  loading: () => <LoadingComponent text="Loading..." />,
+  ssr: false
+});
+
+const CompletedCoinsPage = dynamic(() => import('./components/CompletedCoinsPage').then(mod => ({ default: mod.CompletedCoinsPage })), {
   loading: () => <LoadingComponent text="Loading..." />,
   ssr: false
 });
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<'create' | 'join' | 'completed'>('join');
 
   useEffect(() => {
     setMounted(true);
@@ -24,6 +31,19 @@ export default function Home() {
     return <LoadingComponent text="Loading CoinJam..." />;
   }
 
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'join':
+        return <JoinPage />;
+      case 'create':
+        return <CreateSession />;
+      case 'completed':
+        return <CompletedCoinsPage />;
+      default:
+        return <JoinPage />;
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background dark:bg-background">
       <div className="flex min-h-screen flex-col items-center p-4">
@@ -31,10 +51,16 @@ export default function Home() {
           {/* Header with logo and user identity */}
           <Header />
           
-          {/* Show Join page as the main landing page */}
-          <JoinPage />
+          {/* Render content based on active tab */}
+          {renderTabContent()}
         </div>
       </div>
+      
+      {/* Bottom Navigation */}
+      <BottomNavigation 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
+      />
     </main>
   );
 }

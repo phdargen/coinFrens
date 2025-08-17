@@ -10,7 +10,7 @@ import { useAccount } from 'wagmi';
 import { useMiniKit, useOpenUrl } from '@coinbase/onchainkit/minikit';
 import { base } from 'viem/chains';
 import { CoinSession } from "@/lib/types";
-import { useTransactionContext } from './AppWrapper';
+// Removed useTransactionContext import - using local state instead
 
 import {
   Dialog,
@@ -47,8 +47,24 @@ export function CollectModal({
   const { address } = useAccount();
   const { context } = useMiniKit();
   const openUrl = useOpenUrl();
-  const { transactionState, clearTransactionState } = useTransactionContext();
   const networkChainId = base.id;
+
+  // Local transaction state instead of context
+  const [transactionState, setTransactionState] = useState({
+    isActive: false,
+    step: "",
+    error: "",
+    txHash: "",
+  });
+
+  const clearTransactionState = useCallback(() => {
+    setTransactionState({
+      isActive: false,
+      step: "",
+      error: "",
+      txHash: "",
+    });
+  }, []);
   
   const fid = context?.user?.fid;
   const username = context?.user?.username;
