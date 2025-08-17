@@ -3,7 +3,7 @@ import { getSession, updateSessionStatus, updateSessionMetadata } from "@/lib/se
 import { CdpClient } from "@coinbase/cdp-sdk";
 import { createPublicClient, http, Address, erc20Abi, encodeFunctionData, Hex } from "viem";
 import { base } from "viem/chains";
-import { createCoinCall, DeployCurrency, getCoinCreateFromLogs, validateMetadataURIContent, ValidMetadataURI } from '@zoralabs/coins-sdk';
+import { createCoinCall, CreateConstants, getCoinCreateFromLogs, validateMetadataURIContent, ValidMetadataURI } from '@zoralabs/coins-sdk';
 import { getAllNotificationEnabledUsers } from "@/lib/notification";
 import { sendBatchNotifications } from '@/lib/notification-client';
 import { incrementCreatedCoins } from "@/lib/platform-stats";
@@ -117,10 +117,11 @@ export async function POST(request: Request) {
     const coinParams = {
       name: metadata.name,
       symbol: metadata.symbol,
-      uri: metadata.zoraTokenUri as ValidMetadataURI,
+      metadata: { type: "RAW_URI" as const, uri:metadata.zoraTokenUri },
+      creator: smartAccount.address,
       payoutRecipient: smartAccount.address,
       platformReferrer: smartAccount.address,
-      currency: DeployCurrency.ETH,
+      currency: CreateConstants.ContentCoinCurrencies.ZORA,
       chainId: base.id,
     };
 
@@ -135,16 +136,8 @@ export async function POST(request: Request) {
         console.log(`Coin creation attempt ${attempt}/${maxRetries}...`);
         
         // Get coin creation call data
-        const createCoinRequest = await createCoinCall(coinParams);
-        const coinCreationCall = {
-          to: createCoinRequest.address as Address,
-          data: encodeFunctionData({ 
-            abi: createCoinRequest.abi, 
-            functionName: createCoinRequest.functionName, 
-            args: createCoinRequest.args 
-          }) as Hex,
-          value: createCoinRequest.value,
-        };
+        const createCoinCalls = await createCoinCall(coinParams);
+        const coinCreationCall = createCoinCalls[0];
 
         // Send user operation for coin creation
         console.log("Sending coin creation user operation...");

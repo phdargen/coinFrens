@@ -1,7 +1,7 @@
 import { Address, erc20Abi, PublicClient, WalletClient, encodeFunctionData, Hex } from 'viem';
 import { 
   createCoinCall, 
-  DeployCurrency, 
+  CreateConstants,
   getCoinCreateFromLogs,
   validateMetadataURIContent,
   ValidMetadataURI
@@ -36,10 +36,11 @@ export class ZoraPlatform implements CoinPlatform {
     const coinParams = {
       name: metadata.name,
       symbol: metadata.symbol,
-      uri: metadata.zoraTokenUri as ValidMetadataURI,
+      metadata: { type: "RAW_URI" as const, uri: metadata.zoraTokenUri },
+      creator: creatorAddress,
       payoutRecipient: creatorAddress,
       platformReferrer: creatorAddress,
-      currency: DeployCurrency.ETH,
+      currency: CreateConstants.ContentCoinCurrencies.ZORA,
       chainId: base.id,
     };
 
@@ -57,10 +58,13 @@ export class ZoraPlatform implements CoinPlatform {
       console.log("First attempt: sending transaction without gas estimation...");
       
       // Get the contract call parameters
-      const createCoinRequest = await createCoinCall(coinParams);
-      const { abi, functionName, address, args: callArgs, value } = createCoinRequest;
-      const data = encodeFunctionData({ abi, functionName, args: callArgs });
-      const txRequest = { to: address as Hex, data, value };
+      const createCoinCalls = await createCoinCall(coinParams);
+      const createCoinCall0 = createCoinCalls[0];
+      const txRequest = { 
+        to: createCoinCall0.to, 
+        data: createCoinCall0.data, 
+        value: createCoinCall0.value 
+      };
 
       // Send transaction
       const hash = await walletClient.sendTransaction(txRequest as any);
@@ -86,10 +90,14 @@ export class ZoraPlatform implements CoinPlatform {
       
       try {
         // Retry with fallback gas limit
-        const createCoinRequest = await createCoinCall(coinParams);
-        const { abi, functionName, address, args: callArgs, value } = createCoinRequest;
-        const data = encodeFunctionData({ abi, functionName, args: callArgs });
-        const txRequest = { to: address as Hex, data, value, gas: fallbackGasLimit };
+        const createCoinCalls = await createCoinCall(coinParams);
+        const createCoinCall0 = createCoinCalls[0];
+        const txRequest = { 
+          to: createCoinCall0.to, 
+          data: createCoinCall0.data, 
+          value: createCoinCall0.value, 
+          gas: fallbackGasLimit 
+        };
 
         // Send transaction with gas parameter
         const hash = await walletClient.sendTransaction(txRequest as any);
