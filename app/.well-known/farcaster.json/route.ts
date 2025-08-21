@@ -33,5 +33,8 @@ export async function GET() {
       ogDescription: "CoinJam - Coin with your frens",
       ogImageUrl: `${URL}/session.png`,
     },
+    baseBuilder: {
+      allowedAddresses: ["0x5d6b055F4d7D2a60B0534abf9E8D8e61aBf7ea27"]
+    }
   });
 }
